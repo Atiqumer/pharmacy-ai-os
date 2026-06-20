@@ -46,7 +46,7 @@ def generate_morning_briefing():  # <-- Check this spelling closely!
         
         # 5. Call Llama 3 via Groq to convert numbers into operational insights
         response = client.chat.completions.create(
-            model="llama3-70b-8192",
+            model="llama-3.3-70b-versatile",  # <-- Changed to the active supported model string
             messages=[
                 {
                     "role": "system",

@@ -1,5 +1,5 @@
 .env
 *.pyc
 env
-node_modules
-dist   
+*__init__.py
+__pycache__
