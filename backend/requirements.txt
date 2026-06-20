@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+pydantic
+supabase
+pandas
+python-multipart
+groq
+python-dotenv
+psycopg2-binary
