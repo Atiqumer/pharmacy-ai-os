@@ -1,5 +1,6 @@
 .env
 *.pyc
 env
-*__init__.py
+__init__.py
 __pycache__
+frontend/README.md
