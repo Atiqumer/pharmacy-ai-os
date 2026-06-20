@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+# Explicitly import both route files directly to avoid any __init__ folder caching issues
 from app.routes import inventory
+from app.routes import analytics  
 
 app = FastAPI(
     title="AI-Powered Pharmacy OS Engine",
@@ -8,17 +10,18 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Allow your local Next.js development server to talk to the Python backend seamlessly
+# Allow local Next.js development server connections
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Tighten this up to your specific port in production later
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Register routes
+# Explicitly mount both routers onto the core app instance
 app.include_router(inventory.router)
+app.include_router(analytics.router)  
 
 @app.get("/")
 def read_root():
