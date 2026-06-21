@@ -1,8 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 # Explicitly import both route files directly to avoid any __init__ folder caching issues
-from app.routes import inventory
-from app.routes import analytics  
+from app.routes import inventory, query, analytics
 
 app = FastAPI(
     title="AI-Powered Pharmacy OS Engine",
@@ -21,7 +20,8 @@ app.add_middleware(
 
 # Explicitly mount both routers onto the core app instance
 app.include_router(inventory.router)
-app.include_router(analytics.router)  
+app.include_router(analytics.router)
+app.include_router(query.router)  
 
 @app.get("/")
 def read_root():

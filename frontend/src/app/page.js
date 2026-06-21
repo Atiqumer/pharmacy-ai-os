@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 
 export default function Home() {
@@ -9,11 +9,47 @@ export default function Home() {
   const [briefing, setBriefing] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
 
-  // 1. Handle File Upload to FastAPI Backend
+  // Conversational Search Engine State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState(null);
+  const [isListening, setIsListening] = useState(false);
+  const [speechRecognition, setSpeechRecognition] = useState(null);
+
+  // Initialize Web Speech API safely on client mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = 'en-US';
+
+        recognition.onstart = () => setIsListening(true);
+        recognition.onend = () => setIsListening(false);
+        recognition.onresult = (event) => {
+          const transcript = event.results[0][0].transcript;
+          setSearchQuery(transcript);
+        };
+
+        setSpeechRecognition(recognition);
+      }
+    }
+  }, []);
+
+  const toggleVoiceListening = () => {
+    if (!speechRecognition) return alert('Voice recognition is not supported in this browser. Try Chrome or Edge.');
+    if (isListening) {
+      speechRecognition.stop();
+    } else {
+      speechRecognition.start();
+    }
+  };
+
   const handleUpload = async (e) => {
     e.preventDefault();
     if (!file) return alert('Please select a CSV file first.');
-
     setUploading(true);
     setStatusMessage('');
     const formData = new FormData();
@@ -25,11 +61,8 @@ export default function Home() {
         body: formData,
       });
       const data = await res.json();
-      if (res.ok) {
-        setStatusMessage('✅ Inventory CSV successfully imported to cloud!');
-      } else {
-        setStatusMessage(`❌ Error: ${data.detail || 'Upload failed'}`);
-      }
+      if (res.ok) setStatusMessage('✅ Inventory CSV successfully imported to cloud!');
+      else setStatusMessage(`❌ Error: ${data.detail || 'Upload failed'}`);
     } catch (err) {
       setStatusMessage('❌ Network error connecting to backend.');
     } finally {
@@ -37,22 +70,40 @@ export default function Home() {
     }
   };
 
-  // 2. Fetch AI Insights from Backend
   const fetchBriefing = async () => {
     setLoadingBriefing(true);
     setBriefing('');
     try {
       const res = await fetch('http://127.0.0.1:8000/analytics/morning-briefing');
       const data = await res.json();
-      if (res.ok) {
-        setBriefing(data.briefing);
-      } else {
-        setBriefing('Failed to retrieve AI data metrics.');
-      }
+      if (res.ok) setBriefing(data.briefing);
+      else setBriefing('Failed to retrieve AI data metrics.');
     } catch (err) {
       setBriefing('Network error retrieving data.');
     } finally {
       setLoadingBriefing(false);
+    }
+  };
+
+  // Execute Conversational DB Ask Link
+  const handleNaturalSearch = async (e) => {
+    e.preventDefault();
+    if (!searchQuery.strip && !searchQuery.trim()) return;
+    setSearching(true);
+    setSearchResults(null);
+
+    try {
+      const res = await fetch(`http://127.0.0.1:8000/query/ask?q=${encodeURIComponent(searchQuery)}`);
+      const data = await res.json();
+      if (res.ok) {
+        setSearchResults(data);
+      } else {
+        alert(data.detail || 'Query extraction error.');
+      }
+    } catch (err) {
+      alert('Network error querying AI engine.');
+    } finally {
+      setSearching(false);
     }
   };
 
@@ -73,44 +124,93 @@ export default function Home() {
           <h2 className="text-xl font-semibold text-slate-200 mb-4">1. Import Legacy Sales/Inventory</h2>
           <form onSubmit={handleUpload} className="flex flex-col sm:flex-row gap-4 items-center">
             <input 
-              type="file" 
-              accept=".csv"
+              type="file" accept=".csv"
               onChange={(e) => setFile(e.target.files[0])}
               className="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-emerald-500/10 file:text-emerald-400 hover:file:bg-emerald-500/20 cursor-pointer"
             />
-            <button 
-              type="submit" 
-              disabled={uploading}
-              className="w-full sm:w-auto px-6 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 text-white font-medium rounded-md transition-colors"
-            >
+            <button type="submit" disabled={uploading} className="w-full sm:w-auto px-6 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 text-white font-medium rounded-md transition-colors">
               {uploading ? 'Processing...' : 'Upload CSV'}
             </button>
           </form>
           {statusMessage && <p className="mt-4 text-sm font-medium">{statusMessage}</p>}
         </section>
 
+        {/* NEW COMPONENT: Conversational AI Explorer Box */}
+        <section className="bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-xl space-y-4">
+          <h2 className="text-xl font-semibold text-slate-200">2. Conversational Database Explorer (Type or Speak)</h2>
+          <form onSubmit={handleNaturalSearch} className="flex gap-2">
+            <div className="relative flex-1">
+              <input 
+                type="text"
+                placeholder='Ask anything... e.g., "Show me antibiotics running low" or "Find paracetamol"'
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-md py-2 pl-4 pr-12 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+              />
+              <button
+                type="button"
+                onClick={toggleVoiceListening}
+                className={`absolute right-2 top-1.5 p-1 rounded-md transition-colors ${isListening ? 'bg-red-500/20 text-red-400 animate-pulse' : 'text-slate-400 hover:bg-slate-800'}`}
+                title="Speak command"
+              >
+                🎙️
+              </button>
+            </div>
+            <button type="submit" disabled={searching} className="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-700 text-white font-medium rounded-md text-sm transition-colors">
+              {searching ? 'Querying...' : 'Ask'}
+            </button>
+          </form>
+
+          {/* Results Render Box */}
+          {searchResults && (
+            <div className="mt-4 space-y-2 bg-slate-950 p-4 rounded-lg border border-slate-850">
+              <div className="text-xs text-slate-500 font-mono mb-2">
+                ⚡ <span className="text-slate-400">SQL Run:</span> {searchResults.query_generated}
+              </div>
+              {searchResults.data.length === 0 ? (
+                <p className="text-sm text-slate-400 italic">No matching items found inside the database pool.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm text-slate-300">
+                    <thead className="text-xs uppercase bg-slate-900 text-slate-400">
+                      <tr>
+                        {Object.keys(searchResults.data[0]).map((key) => (
+                          <th key={key} className="px-4 py-2 border-b border-slate-800">{key}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {searchResults.data.map((row, idx) => (
+                        <tr key={idx} className="hover:bg-slate-900/50">
+                          {Object.values(row).map((val, i) => (
+                            <td key={i} className="px-4 py-2 border-b border-slate-850 max-w-xs truncate">{String(val)}</td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+
         {/* AI Briefing Output Interface */}
         <section className="bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-xl space-y-4">
           <div className="flex justify-between items-center border-b border-slate-800 pb-4">
-            <h2 className="text-xl font-semibold text-slate-200">2. Active AI Strategy Briefing</h2>
-            <button 
-              onClick={fetchBriefing}
-              disabled={loadingBriefing}
-              className="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-700 text-white font-medium rounded-md transition-colors text-sm"
-            >
+            <h2 className="text-xl font-semibold text-slate-200">3. Active AI Strategy Briefing</h2>
+            <button onClick={fetchBriefing} disabled={loadingBriefing} className="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-700 text-white font-medium rounded-md transition-colors text-sm">
               {loadingBriefing ? 'Analyzing Data...' : 'Generate Live Insights'}
             </button>
           </div>
 
-          <div className="min-h-[200px] bg-slate-950 rounded-lg p-6 border border-slate-850 text-slate-300 leading-relaxed whitespace-pre-wrap">
+          <div className="min-h-[150px] bg-slate-950 rounded-lg p-6 border border-slate-850 text-slate-300 leading-relaxed whitespace-pre-wrap">
             {briefing ? (
               <div className="prose prose-invert max-w-none tracking-wide space-y-2">
-              <ReactMarkdown>{briefing}</ReactMarkdown>
-</div>
+                <ReactMarkdown>{briefing}</ReactMarkdown>
+              </div>
             ) : (
-              <p className="text-slate-500 italic text-center pt-16">
-                Click "Generate Live Insights" to stream real-time analysis from Llama 3.3.
-              </p>
+              <p className="text-slate-500 italic text-center pt-12">Click "Generate Live Insights" to stream real-time analysis from Llama 3.3.</p>
             )}
           </div>
         </section>
