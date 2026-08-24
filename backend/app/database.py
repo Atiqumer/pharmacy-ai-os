@@ -98,6 +98,32 @@ def init_db():
         cursor.execute('CREATE INDEX IF NOT EXISTS batch_owner_product_idx ON "Batch" ("ownerId", "productId");')
 
         cursor.execute("""
+            CREATE TABLE IF NOT EXISTS "StockMovement" (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                "batchId" UUID NOT NULL REFERENCES "Batch"(id) ON DELETE CASCADE,
+                "productId" UUID NOT NULL REFERENCES "Product"(id) ON DELETE CASCADE,
+                "ownerId" UUID NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+                "createdBy" UUID NOT NULL REFERENCES "User"(id) ON DELETE RESTRICT,
+                "quantityChange" INT NOT NULL CHECK ("quantityChange" <> 0),
+                "quantityBefore" INT NOT NULL CHECK ("quantityBefore" >= 0),
+                "quantityAfter" INT NOT NULL CHECK ("quantityAfter" >= 0),
+                reason VARCHAR(30) NOT NULL CHECK (
+                    reason IN ('opening', 'purchase', 'sale', 'return', 'damage', 'expired', 'correction', 'other')
+                ),
+                note VARCHAR(500),
+                created_at TIMESTAMP NOT NULL DEFAULT NOW()
+            );
+        """)
+        cursor.execute(
+            'CREATE INDEX IF NOT EXISTS stock_movement_owner_created_idx '
+            'ON "StockMovement" ("ownerId", created_at DESC);'
+        )
+        cursor.execute(
+            'CREATE INDEX IF NOT EXISTS stock_movement_batch_idx '
+            'ON "StockMovement" ("batchId", created_at DESC);'
+        )
+
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS "PasswordReset" (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 "userId" UUID NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,

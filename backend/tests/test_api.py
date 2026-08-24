@@ -291,6 +291,127 @@ class TestInventoryReporting:
         assert response.status_code == 422
 
 
+class TestStockLedger:
+    owner_id = "12345678-1234-1234-1234-123456789012"
+    batch_id = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    product_id = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+
+    def _token(self):
+        from app.services.auth import create_access_token
+        return create_access_token(self.owner_id, "stock@test.com")
+
+    def _mock_auth(self, mock_db):
+        conn = MagicMock()
+        cursor = MagicMock()
+        cursor.fetchone.return_value = {
+            "id": self.owner_id,
+            "email": "stock@test.com",
+            "role": "user",
+            "is_active": True,
+        }
+        conn.cursor.return_value = cursor
+        mock_db.return_value = conn
+
+    @patch("app.routes.inventory.get_db_connection")
+    @patch("app.services.auth.get_db_connection")
+    def test_manual_item_creation_records_opening_stock(self, mock_auth_db, mock_inventory_db):
+        self._mock_auth(mock_auth_db)
+        conn = MagicMock()
+        cursor = MagicMock()
+        cursor.fetchone.side_effect = [
+            {"id": self.product_id},
+            {"id": "cccccccc-cccc-cccc-cccc-cccccccccccc"},
+            {"id": self.batch_id},
+        ]
+        conn.cursor.return_value = cursor
+        mock_inventory_db.return_value = conn
+
+        response = client.post(
+            "/inventory/items",
+            headers={"Authorization": f"Bearer {self._token()}"},
+            json={
+                "product_name": "Panadol 500mg",
+                "generic_name": "Paracetamol",
+                "category": "Analgesic",
+                "batch_number": "PAN-NEW",
+                "quantity": 20,
+                "cost_price": "10.00",
+                "retail_price": "15.00",
+                "expiry_date": "2027-12-01",
+            },
+        )
+        assert response.status_code == 201
+        assert response.json()["batch_id"] == self.batch_id
+        assert any('INSERT INTO "StockMovement"' in call.args[0] for call in cursor.execute.call_args_list)
+        conn.commit.assert_called_once()
+
+    @patch("app.routes.inventory.get_db_connection")
+    @patch("app.services.auth.get_db_connection")
+    def test_stock_adjustment_is_atomic_and_audited(self, mock_auth_db, mock_inventory_db):
+        self._mock_auth(mock_auth_db)
+        conn = MagicMock()
+        cursor = MagicMock()
+        cursor.fetchone.side_effect = [
+            {"id": self.batch_id, "productId": self.product_id, "quantity": 10},
+            {"id": "dddddddd-dddd-dddd-dddd-dddddddddddd", "created_at": "2026-08-25T10:00:00"},
+        ]
+        conn.cursor.return_value = cursor
+        mock_inventory_db.return_value = conn
+
+        response = client.post(
+            f"/inventory/items/{self.batch_id}/adjust",
+            headers={"Authorization": f"Bearer {self._token()}"},
+            json={"quantity_change": -3, "reason": "sale", "note": "Counter sale"},
+        )
+        assert response.status_code == 200
+        assert response.json()["quantity_after"] == 7
+        assert 'FOR UPDATE' in cursor.execute.call_args_list[0].args[0]
+        assert any('INSERT INTO "StockMovement"' in call.args[0] for call in cursor.execute.call_args_list)
+        conn.commit.assert_called_once()
+
+    @patch("app.routes.inventory.get_db_connection")
+    @patch("app.services.auth.get_db_connection")
+    def test_stock_adjustment_prevents_negative_quantity(self, mock_auth_db, mock_inventory_db):
+        self._mock_auth(mock_auth_db)
+        conn = MagicMock()
+        cursor = MagicMock()
+        cursor.fetchone.return_value = {
+            "id": self.batch_id,
+            "productId": self.product_id,
+            "quantity": 2,
+        }
+        conn.cursor.return_value = cursor
+        mock_inventory_db.return_value = conn
+
+        response = client.post(
+            f"/inventory/items/{self.batch_id}/adjust",
+            headers={"Authorization": f"Bearer {self._token()}"},
+            json={"quantity_change": -3, "reason": "sale"},
+        )
+        assert response.status_code == 409
+        conn.rollback.assert_called_once()
+        conn.commit.assert_not_called()
+
+    @patch("app.routes.inventory.get_db_connection")
+    @patch("app.services.auth.get_db_connection")
+    def test_movement_history_is_owner_scoped(self, mock_auth_db, mock_inventory_db):
+        self._mock_auth(mock_auth_db)
+        conn = MagicMock()
+        cursor = MagicMock()
+        cursor.fetchall.return_value = []
+        conn.cursor.return_value = cursor
+        mock_inventory_db.return_value = conn
+
+        response = client.get(
+            "/inventory/movements?reason=sale",
+            headers={"Authorization": f"Bearer {self._token()}"},
+        )
+        assert response.status_code == 200
+        sql, params = cursor.execute.call_args.args
+        assert 'm."ownerId" = %s' in sql
+        assert params[0] == self.owner_id
+
+
 class TestAuthSignupValidation:
     def test_rejects_short_password(self):
         response = client.post(

@@ -15,6 +15,7 @@ Implemented:
 - Tenant-scoped products, batches, and suppliers
 - Validated, idempotent CSV inventory import
 - Searchable inventory dashboard with stock, expiry, and valuation KPIs
+- Manual batch creation, controlled stock adjustments, and auditable movement history
 - AI morning briefing through Groq
 - Tenant-validated, read-only natural-language inventory queries
 - Backend unit tests and GitHub Actions CI
@@ -23,7 +24,7 @@ Not yet production-ready:
 
 - Password reset still exposes a development token instead of sending email
 - No real-database integration tests
-- No inventory CRUD UI, stock ledger, purchasing, or sales/POS
+- No product metadata editing, purchasing documents, or sales/POS
 - No cloud deployment, backups, monitoring, or alert delivery
 
 ## Local setup with Docker
@@ -71,7 +72,7 @@ npm run lint -- --max-warnings=0
 npm run build
 ```
 
-Current verified baseline: 30 backend tests pass, ESLint passes with zero warnings, and the Next.js production build succeeds.
+Current verified baseline: 34 backend tests pass, ESLint passes with zero warnings, and the Next.js production build succeeds.
 
 ## Inventory CSV format
 
@@ -87,4 +88,4 @@ See `mock_inventory.csv` for an example.
 
 ## Product direction
 
-The next milestone is a dependable pharmacy inventory MVP: inventory list and editing, expiry/low-stock dashboards, stock adjustments, supplier management, valuation, and reorder suggestions. Sales/POS should follow only after the inventory ledger is reliable and audited.
+The next milestone is purchasing and supplier operations: supplier management, purchase orders, goods receiving, and reorder suggestions. Sales/POS should follow only after purchasing and the inventory ledger are reliable and audited.

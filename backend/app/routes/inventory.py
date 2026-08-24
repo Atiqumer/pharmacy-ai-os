@@ -5,6 +5,10 @@ import pandas as pd
 import io
 import math
 from datetime import date
+from decimal import Decimal
+from typing import Literal, Optional
+from uuid import UUID
+from pydantic import BaseModel, Field, field_validator
 from app.database import get_db_connection
 from app.services.auth import get_current_user
 
@@ -14,6 +18,251 @@ router = APIRouter(prefix="/inventory", tags=["Inventory Management"])
 MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 MAX_UPLOAD_ROWS = 5000
 MAX_TEXT_LENGTH = 255
+
+
+class ManualInventoryItem(BaseModel):
+    product_name: str = Field(min_length=1, max_length=255)
+    generic_name: str = Field(min_length=1, max_length=255)
+    category: str = Field(min_length=1, max_length=100)
+    min_stock_level: int = Field(default=10, ge=0)
+    batch_number: str = Field(min_length=1, max_length=100)
+    quantity: int = Field(ge=0)
+    cost_price: Decimal = Field(ge=0, max_digits=12, decimal_places=2)
+    retail_price: Decimal = Field(ge=0, max_digits=12, decimal_places=2)
+    expiry_date: date
+    supplier_name: str = Field(default="Default Supplier", min_length=1, max_length=255)
+
+
+class StockAdjustment(BaseModel):
+    quantity_change: int
+    reason: Literal["purchase", "sale", "return", "damage", "expired", "correction", "other"]
+    note: Optional[str] = Field(default=None, max_length=500)
+
+    @field_validator("quantity_change")
+    @classmethod
+    def quantity_change_must_not_be_zero(cls, value: int) -> int:
+        if value == 0:
+            raise ValueError("quantity_change must not be zero")
+        return value
+
+
+@router.post("/items", status_code=201)
+@limiter.limit("30/minute")
+async def create_inventory_item(
+    request: Request,
+    item: ManualInventoryItem,
+    user: dict = Depends(get_current_user),
+):
+    owner_id = user["user_id"]
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """INSERT INTO "Product" (id, name, "genericName", category, "minStockLevel", "ownerId")
+               VALUES (gen_random_uuid(), %s, %s, %s, %s, %s)
+               ON CONFLICT ("ownerId", name) DO UPDATE SET
+                 "genericName" = EXCLUDED."genericName",
+                 category = EXCLUDED.category,
+                 "minStockLevel" = EXCLUDED."minStockLevel"
+               RETURNING id;""",
+            (
+                item.product_name.strip(),
+                item.generic_name.strip(),
+                item.category.strip(),
+                item.min_stock_level,
+                owner_id,
+            ),
+        )
+        product_id = cursor.fetchone()["id"]
+
+        cursor.execute(
+            """INSERT INTO "Supplier" (id, name, "ownerId")
+               VALUES (gen_random_uuid(), %s, %s)
+               ON CONFLICT ("ownerId", name) DO UPDATE SET name = EXCLUDED.name
+               RETURNING id;""",
+            (item.supplier_name.strip(), owner_id),
+        )
+        supplier_id = cursor.fetchone()["id"]
+
+        cursor.execute(
+            """INSERT INTO "Batch" (
+                   id, "batchNumber", "productId", "supplierId", quantity,
+                   "costPrice", "retailPrice", "expiryDate", "ownerId"
+               ) VALUES (gen_random_uuid(), %s, %s, %s, %s, %s, %s, %s, %s)
+               ON CONFLICT ("ownerId", "productId", "batchNumber") DO NOTHING
+               RETURNING id;""",
+            (
+                item.batch_number.strip(), product_id, supplier_id, item.quantity,
+                item.cost_price, item.retail_price, item.expiry_date, owner_id,
+            ),
+        )
+        batch = cursor.fetchone()
+        if not batch:
+            raise HTTPException(status_code=409, detail="This batch already exists for the product")
+        batch_id = batch["id"]
+
+        if item.quantity > 0:
+            cursor.execute(
+                """INSERT INTO "StockMovement" (
+                       id, "batchId", "productId", "ownerId", "createdBy",
+                       "quantityChange", "quantityBefore", "quantityAfter", reason, note
+                   ) VALUES (gen_random_uuid(), %s, %s, %s, %s, %s, 0, %s, 'opening', %s);""",
+                (
+                    batch_id, product_id, owner_id, owner_id, item.quantity,
+                    item.quantity, "Manual opening stock",
+                ),
+            )
+
+        conn.commit()
+        return {
+            "message": "Inventory batch created",
+            "batch_id": str(batch_id),
+            "product_id": str(product_id),
+            "quantity": item.quantity,
+        }
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as exc:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail="Inventory batch could not be created") from exc
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@router.post("/items/{batch_id}/adjust")
+@limiter.limit("30/minute")
+async def adjust_batch_stock(
+    request: Request,
+    batch_id: UUID,
+    adjustment: StockAdjustment,
+    user: dict = Depends(get_current_user),
+):
+    owner_id = user["user_id"]
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """SELECT id, "productId", quantity
+               FROM "Batch"
+               WHERE id = %s AND "ownerId" = %s
+               FOR UPDATE;""",
+            (str(batch_id), owner_id),
+        )
+        batch = cursor.fetchone()
+        if not batch:
+            raise HTTPException(status_code=404, detail="Inventory batch not found")
+
+        quantity_before = batch["quantity"]
+        quantity_after = quantity_before + adjustment.quantity_change
+        if quantity_after < 0:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Adjustment would make stock negative. Available quantity: {quantity_before}",
+            )
+
+        cursor.execute(
+            'UPDATE "Batch" SET quantity = %s WHERE id = %s AND "ownerId" = %s;',
+            (quantity_after, str(batch_id), owner_id),
+        )
+        cursor.execute(
+            """INSERT INTO "StockMovement" (
+                   id, "batchId", "productId", "ownerId", "createdBy",
+                   "quantityChange", "quantityBefore", "quantityAfter", reason, note
+               ) VALUES (gen_random_uuid(), %s, %s, %s, %s, %s, %s, %s, %s, %s)
+               RETURNING id, created_at;""",
+            (
+                str(batch_id), batch["productId"], owner_id, owner_id,
+                adjustment.quantity_change, quantity_before, quantity_after,
+                adjustment.reason, adjustment.note.strip() if adjustment.note else None,
+            ),
+        )
+        movement = cursor.fetchone()
+        conn.commit()
+        return {
+            "message": "Stock adjusted",
+            "movement_id": str(movement["id"]),
+            "quantity_before": quantity_before,
+            "quantity_change": adjustment.quantity_change,
+            "quantity_after": quantity_after,
+            "reason": adjustment.reason,
+            "created_at": str(movement["created_at"]),
+        }
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as exc:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail="Stock could not be adjusted") from exc
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@router.get("/movements")
+@limiter.limit("30/minute")
+async def list_stock_movements(
+    request: Request,
+    page: int = Query(1, ge=1),
+    limit: int = Query(25, ge=1, le=100),
+    batch_id: Optional[UUID] = None,
+    reason: Optional[Literal["opening", "purchase", "sale", "return", "damage", "expired", "correction", "other"]] = None,
+    user: dict = Depends(get_current_user),
+):
+    conditions = ['m."ownerId" = %s']
+    params = [user["user_id"]]
+    if batch_id:
+        conditions.append('m."batchId" = %s')
+        params.append(str(batch_id))
+    if reason:
+        conditions.append('m.reason = %s')
+        params.append(reason)
+    params.extend([limit, (page - 1) * limit])
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            f"""SELECT
+                    m.id, m."batchId", p.name, b."batchNumber",
+                    m."quantityChange", m."quantityBefore", m."quantityAfter",
+                    m.reason, m.note, u.full_name, m.created_at,
+                    COUNT(*) OVER() AS total_count
+                FROM "StockMovement" m
+                JOIN "Batch" b ON b.id = m."batchId" AND b."ownerId" = m."ownerId"
+                JOIN "Product" p ON p.id = m."productId" AND p."ownerId" = m."ownerId"
+                JOIN "User" u ON u.id = m."createdBy"
+                WHERE {' AND '.join(conditions)}
+                ORDER BY m.created_at DESC
+                LIMIT %s OFFSET %s;""",
+            tuple(params),
+        )
+        rows = cursor.fetchall()
+        return {
+            "movements": [
+                {
+                    "id": str(row["id"]),
+                    "batch_id": str(row["batchId"]),
+                    "product_name": row["name"],
+                    "batch_number": row["batchNumber"],
+                    "quantity_change": row["quantityChange"],
+                    "quantity_before": row["quantityBefore"],
+                    "quantity_after": row["quantityAfter"],
+                    "reason": row["reason"],
+                    "note": row["note"],
+                    "created_by": row["full_name"],
+                    "created_at": str(row["created_at"]),
+                }
+                for row in rows
+            ],
+            "total": rows[0]["total_count"] if rows else 0,
+            "page": page,
+            "limit": limit,
+        }
+    finally:
+        cursor.close()
+        conn.close()
 
 
 @router.get("/summary")

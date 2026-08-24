@@ -52,7 +52,7 @@ pharmacy/
 │   ├── tests/
 │   │   ├── __init__.py
 │   │   ├── conftest.py
-│   │   └── test_api.py             # 30 unit tests
+│   │   └── test_api.py             # 34 unit tests
 │   └── app/
 │       ├── main.py                 # FastAPI entrypoint, lifespan, CORS, rate limiting
 │       ├── database.py             # PostgreSQL connection + auto table init
@@ -110,6 +110,9 @@ pharmacy/
 | POST | `/inventory/upload-csv` | Yes | any | 10/min | Upload CSV inventory |
 | GET | `/inventory/summary` | Yes | any | 30/min | Stock, expiry, and valuation KPIs |
 | GET | `/inventory/items` | Yes | any | 30/min | Searchable/filterable batch inventory |
+| POST | `/inventory/items` | Yes | any | 30/min | Manually create a product batch |
+| POST | `/inventory/items/{batch_id}/adjust` | Yes | any | 30/min | Atomically adjust stock and write audit entry |
+| GET | `/inventory/movements` | Yes | any | 30/min | Tenant-scoped stock movement history |
 | GET | `/analytics/morning-briefing` | Yes | any | 5/min | AI briefing |
 | GET | `/query/ask?q=` | Yes | any | 15/min | NL→SQL query |
 
@@ -140,6 +143,9 @@ pharmacy/
 - Low-stock, in-stock, expiring, expired, and valid filters
 - Product/unit totals, inventory cost, retail value, and potential margin
 - Automatic dashboard refresh after a successful import
+- Manual product/batch creation with opening-stock audit entries
+- Atomic stock adjustments with negative-stock prevention
+- Movement history containing before/after quantities, reasons, notes, user, and time
 
 ### 5. AI Morning Briefing
 - Pulls SKU count, low-stock items, items expiring within 90 days
@@ -169,6 +175,7 @@ pharmacy/
 | `Product` | id (UUID), name, genericName, category, minStockLevel, ownerId (FK→User) |
 | `Batch` | id (UUID), batchNumber, productId (FK), supplierId (FK), quantity, costPrice, retailPrice, expiryDate, ownerId (FK→User) |
 | `Supplier` | id (UUID), name, ownerId (FK→User) |
+| `StockMovement` | batchId, productId, ownerId, createdBy, quantityChange, quantityBefore, quantityAfter, reason, note |
 | `PasswordReset` | id (UUID), userId (FK→User), token, expires_at, used |
 
 Tables auto-create on startup via `init_db()`.
@@ -229,7 +236,7 @@ npm run dev
 
 ## Testing
 
-**30 tests passing** across 7 test classes:
+**34 tests passing** across 8 test classes:
 
 | Class | Tests | Coverage |
 |-------|-------|----------|
@@ -238,6 +245,7 @@ npm run dev
 | `TestJWTAuth` | 5 | Token validation, protected endpoints |
 | `TestUploadCSVValidation` | 2 | File type and column validation |
 | `TestInventoryReporting` | 3 | Summary, list filters, and tenant-scoped query parameters |
+| `TestStockLedger` | 4 | Manual creation, atomic adjustment, negative-stock prevention, history scope |
 | `TestAuthSignupValidation` | 3 | Password length, fields, login flow |
 | `TestRBAC` | 5 | Admin access, user denial, live role/status enforcement |
 
@@ -258,5 +266,5 @@ GitHub Actions (`.github/workflows/ci.yml`):
 2. No email verification on signup
 3. No frontend tests (Jest/Playwright)
 4. No integration tests with real PostgreSQL in CI
-5. No manual inventory CRUD, stock ledger, purchasing, or sales/POS workflow yet
+5. No metadata editing, purchasing documents, sales/POS, or returns workflow yet
 6. No production hosting configuration or monitoring

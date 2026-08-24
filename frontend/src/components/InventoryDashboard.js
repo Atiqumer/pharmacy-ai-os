@@ -30,6 +30,12 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
   const [expiryStatus, setExpiryStatus] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [adjustingItem, setAdjustingItem] = useState(null);
+  const [showMovements, setShowMovements] = useState(false);
+  const [movements, setMovements] = useState([]);
+  const [movementTotal, setMovementTotal] = useState(0);
+  const [actionLoading, setActionLoading] = useState(false);
   const limit = 10;
 
   const loadInventory = useCallback(async (targetPage = 1) => {
@@ -75,6 +81,80 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
     setSearch(draftSearch.trim());
   };
 
+  const createItem = async (event) => {
+    event.preventDefault();
+    setActionLoading(true);
+    setError('');
+    const form = new FormData(event.currentTarget);
+    const payload = Object.fromEntries(form.entries());
+    payload.quantity = Number(payload.quantity);
+    payload.min_stock_level = Number(payload.min_stock_level);
+
+    try {
+      const response = await authFetch(`${API_URL}/inventory/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || 'Inventory batch could not be created');
+      setShowAddForm(false);
+      await loadInventory(1);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const adjustStock = async (event) => {
+    event.preventDefault();
+    setActionLoading(true);
+    setError('');
+    const form = new FormData(event.currentTarget);
+    const payload = {
+      quantity_change: Number(form.get('quantity_change')),
+      reason: form.get('reason'),
+      note: form.get('note'),
+    };
+
+    try {
+      const response = await authFetch(`${API_URL}/inventory/items/${adjustingItem.batch_id}/adjust`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || 'Stock could not be adjusted');
+      setAdjustingItem(null);
+      await loadInventory(page);
+      if (showMovements) await loadMovements();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const loadMovements = async () => {
+    setError('');
+    try {
+      const response = await authFetch(`${API_URL}/inventory/movements?limit=25`);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || 'Stock history could not be loaded');
+      setMovements(data.movements);
+      setMovementTotal(data.total);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const toggleMovements = async () => {
+    const next = !showMovements;
+    setShowMovements(next);
+    if (next) await loadMovements();
+  };
+
   const cards = summary ? [
     ['Products', summary.total_products, 'text-cyan-300'],
     ['Units in stock', summary.total_units, 'text-slate-100'],
@@ -88,9 +168,19 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
 
   return (
     <section className="space-y-5">
-      <div>
-        <h2 className="text-xl font-semibold text-slate-100">Inventory overview</h2>
-        <p className="text-sm text-slate-400 mt-1">Live stock, expiry risk, and inventory value for your pharmacy.</p>
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-semibold text-slate-100">Inventory overview</h2>
+          <p className="text-sm text-slate-400 mt-1">Live stock, expiry risk, and inventory value for your pharmacy.</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={toggleMovements} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-md text-sm">
+            {showMovements ? 'Hide history' : 'Movement history'}
+          </button>
+          <button onClick={() => setShowAddForm(true)} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-md text-sm font-medium">
+            Add batch
+          </button>
+        </div>
       </div>
 
       {error && <div className="p-3 rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 text-sm">{error}</div>}
@@ -140,6 +230,7 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
                 <th className="px-4 py-3">Total stock</th>
                 <th className="px-4 py-3">Expiry</th>
                 <th className="px-4 py-3">Cost / Retail</th>
+                <th className="px-4 py-3">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
@@ -166,6 +257,11 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
                       <p>{money.format(item.cost_price)}</p>
                       <p className="text-emerald-300">{money.format(item.retail_price)}</p>
                     </td>
+                    <td className="px-4 py-3">
+                      <button onClick={() => setAdjustingItem(item)} className="px-3 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 rounded text-xs">
+                        Adjust
+                      </button>
+                    </td>
                   </tr>
                 );
               })}
@@ -186,6 +282,92 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
           </div>
         )}
       </div>
+
+      {showMovements && (
+        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+          <div className="p-4 border-b border-slate-800 flex justify-between">
+            <div>
+              <h3 className="font-semibold">Stock movement history</h3>
+              <p className="text-xs text-slate-500 mt-1">Latest 25 of {movementTotal} audited movements</p>
+            </div>
+            <button onClick={loadMovements} className="text-sm text-cyan-300">Refresh</button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-950/70 text-xs uppercase text-slate-500 text-left">
+                <tr>
+                  <th className="px-4 py-3">Date</th><th className="px-4 py-3">Product / Batch</th><th className="px-4 py-3">Change</th><th className="px-4 py-3">Balance</th><th className="px-4 py-3">Reason</th><th className="px-4 py-3">Note</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800">
+                {movements.map((movement) => (
+                  <tr key={movement.id}>
+                    <td className="px-4 py-3 text-xs text-slate-400">{new Date(movement.created_at).toLocaleString()}</td>
+                    <td className="px-4 py-3"><p>{movement.product_name}</p><p className="text-xs text-slate-500">{movement.batch_number}</p></td>
+                    <td className={`px-4 py-3 font-semibold ${movement.quantity_change > 0 ? 'text-emerald-300' : 'text-red-300'}`}>{movement.quantity_change > 0 ? '+' : ''}{movement.quantity_change}</td>
+                    <td className="px-4 py-3">{movement.quantity_before} → {movement.quantity_after}</td>
+                    <td className="px-4 py-3 capitalize">{movement.reason}</td>
+                    <td className="px-4 py-3 text-slate-400">{movement.note || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {movements.length === 0 && <p className="text-center py-8 text-slate-500">No stock movements recorded yet.</p>}
+          </div>
+        </div>
+      )}
+
+      {showAddForm && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <form onSubmit={createItem} className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-slate-900 border border-slate-700 rounded-xl p-6 space-y-5">
+            <div className="flex justify-between items-center">
+              <div><h3 className="text-lg font-semibold">Add inventory batch</h3><p className="text-xs text-slate-500">Opening quantity will be recorded in the stock ledger.</p></div>
+              <button type="button" onClick={() => setShowAddForm(false)} className="text-slate-400 hover:text-white">Close</button>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <label className="text-sm text-slate-400">Product name<input required name="product_name" className="form-input" /></label>
+              <label className="text-sm text-slate-400">Generic name<input required name="generic_name" className="form-input" /></label>
+              <label className="text-sm text-slate-400">Category<input required name="category" className="form-input" /></label>
+              <label className="text-sm text-slate-400">Supplier<input required name="supplier_name" defaultValue="Default Supplier" className="form-input" /></label>
+              <label className="text-sm text-slate-400">Batch number<input required name="batch_number" className="form-input" /></label>
+              <label className="text-sm text-slate-400">Expiry date<input required type="date" name="expiry_date" className="form-input" /></label>
+              <label className="text-sm text-slate-400">Opening quantity<input required type="number" min="0" name="quantity" defaultValue="0" className="form-input" /></label>
+              <label className="text-sm text-slate-400">Minimum stock<input required type="number" min="0" name="min_stock_level" defaultValue="10" className="form-input" /></label>
+              <label className="text-sm text-slate-400">Cost price<input required type="number" min="0" step="0.01" name="cost_price" className="form-input" /></label>
+              <label className="text-sm text-slate-400">Retail price<input required type="number" min="0" step="0.01" name="retail_price" className="form-input" /></label>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setShowAddForm(false)} className="px-4 py-2 bg-slate-800 rounded-md text-sm">Cancel</button>
+              <button disabled={actionLoading} className="px-4 py-2 bg-emerald-600 rounded-md text-sm font-medium disabled:opacity-50">{actionLoading ? 'Saving…' : 'Create batch'}</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {adjustingItem && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <form onSubmit={adjustStock} className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-xl p-6 space-y-5">
+            <div>
+              <h3 className="text-lg font-semibold">Adjust stock</h3>
+              <p className="text-sm text-slate-400 mt-1">{adjustingItem.name} · {adjustingItem.batch_number}</p>
+              <p className="text-xs text-slate-500">Current batch quantity: {adjustingItem.quantity}</p>
+            </div>
+            <label className="block text-sm text-slate-400">Quantity change
+              <input required type="number" name="quantity_change" placeholder="Use -3 for a sale, +10 for purchase" className="form-input" />
+            </label>
+            <label className="block text-sm text-slate-400">Reason
+              <select required name="reason" className="form-input">
+                <option value="purchase">Purchase received</option><option value="sale">Sale</option><option value="return">Return</option><option value="damage">Damaged</option><option value="expired">Expired</option><option value="correction">Stock count correction</option><option value="other">Other</option>
+              </select>
+            </label>
+            <label className="block text-sm text-slate-400">Note<textarea name="note" maxLength="500" rows="3" className="form-input" /></label>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setAdjustingItem(null)} className="px-4 py-2 bg-slate-800 rounded-md text-sm">Cancel</button>
+              <button disabled={actionLoading} className="px-4 py-2 bg-cyan-600 rounded-md text-sm font-medium disabled:opacity-50">{actionLoading ? 'Saving…' : 'Save adjustment'}</button>
+            </div>
+          </form>
+        </div>
+      )}
     </section>
   );
 }
