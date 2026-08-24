@@ -1,1 +1,1 @@
-from . import inventory, analytics
+from . import inventory, analytics, query, auth, admin

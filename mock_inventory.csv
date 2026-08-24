@@ -1,6 +1,6 @@
-product_name,generic_name,category,batch_number,quantity,cost_price,retail_price,expiry_date
-Amoxicillin 500mg,Amoxicillin,Antibiotic,AMX-102,150,2.50,5.00,2026-12-15
-Lipitor 20mg,Atorvastatin,Cardiovascular,LIP-992,5,15.00,22.50,2026-07-10
-Panadol 500mg,Paracetamol,Analgesic,PAN-441,500,0.10,0.50,2027-03-01
-Augmentin 625mg,Amoxicillin Clavulanate,Antibiotic,AUG-004,8,8.50,14.00,2026-06-30
-Zithromax 250mg,Azithromycin,Antibiotic,ZIT-881,40,4.00,9.00,2026-08-05
+product_name,generic_name,category,batch_number,quantity,cost_price,retail_price,expiry_date,min_stock_level
+Amoxicillin 500mg,Amoxicillin,Antibiotic,AMX-102,150,2.50,5.00,2026-12-15,20
+Lipitor 20mg,Atorvastatin,Cardiovascular,LIP-992,5,15.00,22.50,2026-07-10,15
+Panadol 500mg,Paracetamol,Analgesic,PAN-441,500,0.10,0.50,2027-03-01,50
+Augmentin 625mg,Amoxicillin Clavulanate,Antibiotic,AUG-004,8,8.50,14.00,2026-06-30,10
+Zithromax 250mg,Azithromycin,Antibiotic,ZIT-881,40,4.00,9.00,2026-08-05,10

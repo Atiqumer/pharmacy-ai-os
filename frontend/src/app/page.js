@@ -1,22 +1,34 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
+import { useAuth } from '@/contexts/AuthContext';
+import Link from 'next/link';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
 export default function Home() {
+  const { user, loading, logout, authFetch, isAdmin } = useAuth();
+  const router = useRouter();
+
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [loadingBriefing, setLoadingBriefing] = useState(false);
   const [briefing, setBriefing] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
 
-  // Conversational Search Engine State
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState(null);
   const [isListening, setIsListening] = useState(false);
   const [speechRecognition, setSpeechRecognition] = useState(null);
 
-  // Initialize Web Speech API safely on client mount
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -56,15 +68,15 @@ export default function Home() {
     formData.append('file', file);
 
     try {
-      const res = await fetch('http://127.0.0.1:8000/inventory/upload-csv', {
+      const res = await authFetch(`${API_URL}/inventory/upload-csv`, {
         method: 'POST',
         body: formData,
       });
       const data = await res.json();
-      if (res.ok) setStatusMessage('✅ Inventory CSV successfully imported to cloud!');
-      else setStatusMessage(`❌ Error: ${data.detail || 'Upload failed'}`);
+      if (res.ok) setStatusMessage('Inventory CSV successfully imported!');
+      else setStatusMessage(`Error: ${data.detail || 'Upload failed'}`);
     } catch (err) {
-      setStatusMessage('❌ Network error connecting to backend.');
+      setStatusMessage('Network error connecting to backend.');
     } finally {
       setUploading(false);
     }
@@ -74,7 +86,7 @@ export default function Home() {
     setLoadingBriefing(true);
     setBriefing('');
     try {
-      const res = await fetch('http://127.0.0.1:8000/analytics/morning-briefing');
+      const res = await authFetch(`${API_URL}/analytics/morning-briefing`);
       const data = await res.json();
       if (res.ok) setBriefing(data.briefing);
       else setBriefing('Failed to retrieve AI data metrics.');
@@ -85,15 +97,14 @@ export default function Home() {
     }
   };
 
-  // Execute Conversational DB Ask Link
   const handleNaturalSearch = async (e) => {
     e.preventDefault();
-    if (!searchQuery.strip && !searchQuery.trim()) return;
+    if (!searchQuery || !searchQuery.trim()) return;
     setSearching(true);
     setSearchResults(null);
 
     try {
-      const res = await fetch(`http://127.0.0.1:8000/query/ask?q=${encodeURIComponent(searchQuery)}`);
+      const res = await authFetch(`${API_URL}/query/ask?q=${encodeURIComponent(searchQuery)}`);
       const data = await res.json();
       if (res.ok) {
         setSearchResults(data);
@@ -107,16 +118,47 @@ export default function Home() {
     }
   };
 
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <p className="text-slate-400">Loading...</p>
+      </main>
+    );
+  }
+
+  if (!user) return null;
+
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 p-8 font-sans">
       <div className="max-w-4xl mx-auto space-y-8">
         
         {/* Header Block */}
-        <header className="border-b border-slate-800 pb-6">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-            RxOS • AI Pharmacy Operating System
-          </h1>
-          <p className="text-slate-400 mt-2">Intelligent operations, inventory prediction, and risk mitigation.</p>
+        <header className="border-b border-slate-800 pb-6 flex justify-between items-start">
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+                RxOS - AI Pharmacy Operating System
+              </h1>
+              {isAdmin && (
+                <Link href="/admin" className="px-2 py-0.5 text-xs bg-amber-500/20 text-amber-400 rounded border border-amber-500/30 hover:bg-amber-500/30">
+                  Admin
+                </Link>
+              )}
+            </div>
+            <p className="text-slate-400 mt-2">Intelligent operations, inventory prediction, and risk mitigation.</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-slate-400">
+              {user.full_name || user.email}
+              <span className="ml-2 text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400">{user.role}</span>
+            </span>
+            <button
+              onClick={logout}
+              className="px-3 py-1 text-sm text-slate-400 hover:text-slate-200 border border-slate-700 rounded-md hover:bg-slate-800 transition-colors"
+            >
+              Sign Out
+            </button>
+          </div>
         </header>
 
         {/* Data Ingestion Panel */}
@@ -135,7 +177,7 @@ export default function Home() {
           {statusMessage && <p className="mt-4 text-sm font-medium">{statusMessage}</p>}
         </section>
 
-        {/* NEW COMPONENT: Conversational AI Explorer Box */}
+        {/* Conversational AI Explorer Box */}
         <section className="bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-xl space-y-4">
           <h2 className="text-xl font-semibold text-slate-200">2. Conversational Database Explorer (Type or Speak)</h2>
           <form onSubmit={handleNaturalSearch} className="flex gap-2">
@@ -153,7 +195,7 @@ export default function Home() {
                 className={`absolute right-2 top-1.5 p-1 rounded-md transition-colors ${isListening ? 'bg-red-500/20 text-red-400 animate-pulse' : 'text-slate-400 hover:bg-slate-800'}`}
                 title="Speak command"
               >
-                🎙️
+                Mic
               </button>
             </div>
             <button type="submit" disabled={searching} className="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-700 text-white font-medium rounded-md text-sm transition-colors">
@@ -165,7 +207,7 @@ export default function Home() {
           {searchResults && (
             <div className="mt-4 space-y-2 bg-slate-950 p-4 rounded-lg border border-slate-850">
               <div className="text-xs text-slate-500 font-mono mb-2">
-                ⚡ <span className="text-slate-400">SQL Run:</span> {searchResults.query_generated}
+                SQL Run: {searchResults.query_generated}
               </div>
               {searchResults.data.length === 0 ? (
                 <p className="text-sm text-slate-400 italic">No matching items found inside the database pool.</p>

@@ -10,3 +10,5 @@ psycopg2-binary
 pyjwt
 sqlparse
 slowapi
+pytest
+httpx
