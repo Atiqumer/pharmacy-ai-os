@@ -16,6 +16,7 @@ Implemented:
 - Validated, idempotent CSV inventory import
 - Searchable inventory dashboard with stock, expiry, and valuation KPIs
 - Manual batch creation, controlled stock adjustments, and auditable movement history
+- Supplier directory, multi-line purchase orders, and atomic goods receiving
 - AI morning briefing through Groq
 - Tenant-validated, read-only natural-language inventory queries
 - Backend unit tests and GitHub Actions CI
@@ -24,7 +25,7 @@ Not yet production-ready:
 
 - Password reset still exposes a development token instead of sending email
 - No real-database integration tests
-- No product metadata editing, purchasing documents, or sales/POS
+- No product edit UI, printable purchase documents, or sales/POS
 - No cloud deployment, backups, monitoring, or alert delivery
 
 ## Local setup with Docker
@@ -72,7 +73,7 @@ npm run lint -- --max-warnings=0
 npm run build
 ```
 
-Current verified baseline: 34 backend tests pass, ESLint passes with zero warnings, and the Next.js production build succeeds.
+Current verified baseline: 40 backend tests pass, ESLint passes with zero warnings, and the Next.js production build succeeds.
 
 ## Inventory CSV format
 
@@ -88,4 +89,4 @@ See `mock_inventory.csv` for an example.
 
 ## Product direction
 
-The next milestone is purchasing and supplier operations: supplier management, purchase orders, goods receiving, and reorder suggestions. Sales/POS should follow only after purchasing and the inventory ledger are reliable and audited.
+The next milestone is reorder intelligence and production readiness: reorder suggestions, supplier edit controls, printable purchase documents, real-PostgreSQL integration tests, and production password reset. Sales/POS should follow once these workflows are deployed and validated with real pharmacy users.

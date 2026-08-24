@@ -155,6 +155,9 @@ export default function Home() {
             <p className="text-slate-400 mt-2">Intelligent operations, inventory prediction, and risk mitigation.</p>
           </div>
           <div className="flex items-center gap-4">
+            <Link href="/purchasing" className="px-3 py-1 text-sm text-cyan-300 border border-cyan-500/30 rounded-md hover:bg-cyan-500/10">
+              Purchasing
+            </Link>
             <span className="text-sm text-slate-400">
               {user.full_name || user.email}
               <span className="ml-2 text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400">{user.role}</span>

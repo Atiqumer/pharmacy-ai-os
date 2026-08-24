@@ -52,7 +52,8 @@ pharmacy/
 │   ├── tests/
 │   │   ├── __init__.py
 │   │   ├── conftest.py
-│   │   └── test_api.py             # 34 unit tests
+│   │   ├── test_api.py
+│   │   └── test_purchasing.py      # 40 total unit tests
 │   └── app/
 │       ├── main.py                 # FastAPI entrypoint, lifespan, CORS, rate limiting
 │       ├── database.py             # PostgreSQL connection + auto table init
@@ -87,6 +88,7 @@ pharmacy/
 │           ├── page.js             # Main dashboard (auth-gated, admin badge)
 │           ├── login/page.js       # Login/signup + forgot password link
 │           ├── forgot-password/page.js  # Password reset flow
+│           ├── purchasing/page.js  # Suppliers, purchase orders, receiving
 │           └── admin/page.js       # Admin panel (user management)
 └── mock_inventory.csv
 ```
@@ -113,6 +115,14 @@ pharmacy/
 | POST | `/inventory/items` | Yes | any | 30/min | Manually create a product batch |
 | POST | `/inventory/items/{batch_id}/adjust` | Yes | any | 30/min | Atomically adjust stock and write audit entry |
 | GET | `/inventory/movements` | Yes | any | 30/min | Tenant-scoped stock movement history |
+| GET | `/suppliers` | Yes | any | 30/min | Search/list tenant suppliers |
+| POST | `/suppliers` | Yes | any | 20/min | Create supplier |
+| PUT | `/suppliers/{id}` | Yes | any | 20/min | Update or deactivate supplier |
+| POST | `/purchasing/orders` | Yes | any | 20/min | Create draft purchase order |
+| GET | `/purchasing/orders` | Yes | any | 30/min | List purchase orders |
+| GET | `/purchasing/orders/{id}` | Yes | any | 30/min | Purchase order detail and lines |
+| POST | `/purchasing/orders/{id}/submit` | Yes | any | 20/min | Submit draft order |
+| POST | `/purchasing/orders/{id}/receive` | Yes | any | 20/min | Atomically receive goods into inventory |
 | GET | `/analytics/morning-briefing` | Yes | any | 5/min | AI briefing |
 | GET | `/query/ask?q=` | Yes | any | 15/min | NL→SQL query |
 
@@ -165,6 +175,14 @@ pharmacy/
 - **Rate Limiting:** Per-endpoint via slowapi
 - **Logging:** Structured request/response logging
 
+### 8. Supplier & Purchasing Operations
+- Tenant-scoped supplier directory with contact details and activation status
+- Multi-line draft purchase orders with expected dates and calculated totals
+- Draft → ordered → partially received → received workflow
+- Goods receipt records with supplier reference and notes
+- Over-receipt prevention using row locks and outstanding quantities
+- Atomic batch upsert, inventory increase, receipt record, and stock-ledger entry
+
 ---
 
 ## Database Schema
@@ -176,6 +194,10 @@ pharmacy/
 | `Batch` | id (UUID), batchNumber, productId (FK), supplierId (FK), quantity, costPrice, retailPrice, expiryDate, ownerId (FK→User) |
 | `Supplier` | id (UUID), name, ownerId (FK→User) |
 | `StockMovement` | batchId, productId, ownerId, createdBy, quantityChange, quantityBefore, quantityAfter, reason, note |
+| `PurchaseOrder` | orderNumber, supplierId, ownerId, status, expectedDate, totalCost |
+| `PurchaseOrderItem` | purchaseOrderId, productId, orderedQuantity, receivedQuantity, costPrice |
+| `GoodsReceipt` | purchaseOrderId, ownerId, receivedBy, reference, received_at |
+| `GoodsReceiptItem` | receiptId, purchaseOrderItemId, batchId, quantity |
 | `PasswordReset` | id (UUID), userId (FK→User), token, expires_at, used |
 
 Tables auto-create on startup via `init_db()`.
@@ -236,7 +258,7 @@ npm run dev
 
 ## Testing
 
-**34 tests passing** across 8 test classes:
+**40 tests passing** across 10 test classes:
 
 | Class | Tests | Coverage |
 |-------|-------|----------|
@@ -246,6 +268,8 @@ npm run dev
 | `TestUploadCSVValidation` | 2 | File type and column validation |
 | `TestInventoryReporting` | 3 | Summary, list filters, and tenant-scoped query parameters |
 | `TestStockLedger` | 4 | Manual creation, atomic adjustment, negative-stock prevention, history scope |
+| `TestSuppliers` | 2 | Tenant scoping and supplier creation |
+| `TestPurchasing` | 4 | Product ownership, submission, atomic receiving, over-receipt prevention |
 | `TestAuthSignupValidation` | 3 | Password length, fields, login flow |
 | `TestRBAC` | 5 | Admin access, user denial, live role/status enforcement |
 
@@ -266,5 +290,5 @@ GitHub Actions (`.github/workflows/ci.yml`):
 2. No email verification on signup
 3. No frontend tests (Jest/Playwright)
 4. No integration tests with real PostgreSQL in CI
-5. No metadata editing, purchasing documents, sales/POS, or returns workflow yet
+5. No supplier edit UI, printable purchasing documents, sales/POS, or returns workflow yet
 6. No production hosting configuration or monitoring

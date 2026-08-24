@@ -7,7 +7,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-from app.routes import inventory, query, analytics, auth, admin
+from app.routes import inventory, query, analytics, auth, admin, suppliers, purchasing
 from app.middleware.logging import log_requests
 from app.database import init_db
 
@@ -54,6 +54,8 @@ async def request_logging_middleware(request: Request, call_next):
 app.include_router(auth.router)
 app.include_router(admin.router)
 app.include_router(inventory.router)
+app.include_router(suppliers.router)
+app.include_router(purchasing.router)
 app.include_router(analytics.router)
 app.include_router(query.router)
 
