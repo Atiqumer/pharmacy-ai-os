@@ -52,7 +52,7 @@ pharmacy/
 │   ├── tests/
 │   │   ├── __init__.py
 │   │   ├── conftest.py
-│   │   └── test_api.py             # 24 unit tests (all passing)
+│   │   └── test_api.py             # 27 unit tests
 │   └── app/
 │       ├── main.py                 # FastAPI entrypoint, lifespan, CORS, rate limiting
 │       ├── database.py             # PostgreSQL connection + auto table init
@@ -73,7 +73,7 @@ pharmacy/
 ├── frontend/
 │   ├── Dockerfile                  # Multi-stage Node.js 20 build
 │   ├── .dockerignore
-│   ├── next.config.js              # Standalone output for Docker
+│   ├── next.config.mjs             # Standalone output for Docker
 │   ├── .env.local
 │   ├── .env.example
 │   └── src/
@@ -125,12 +125,13 @@ pharmacy/
 ### 2. Multi-Tenancy
 - All data (Product, Batch, Supplier) scoped to owner via `ownerId` FK
 - Admin can view all data across users
-- JWT includes role claim for RBAC enforcement
+- Active status and current role are revalidated from PostgreSQL on each protected request
 
 ### 3. CSV Inventory Import
 - Upload `.csv` with columns: `product_name`, `generic_name`, `category`, `batch_number`, `quantity`, `cost_price`, `retail_price`, `expiry_date`
 - Optional: `min_stock_level` (defaults to `10`)
-- Auto-creates Product, Supplier, Batch records scoped to user
+- Validates size, row count, text, dates, quantities, and prices before writing
+- Safely upserts Product, Supplier, and Batch records scoped to the user
 
 ### 4. AI Morning Briefing
 - Pulls SKU count, low-stock items, items expiring within 90 days
@@ -142,8 +143,9 @@ pharmacy/
 - Voice input via Web Speech API (Chrome/Edge)
 
 ### 6. Security
-- **SQL Injection:** `sqlparse` AST parsing + SELECT-only + keyword blocklist + table allowlist
-- **Auth:** JWT with configurable expiry, owner-scoped data
+- **SQL Injection:** `sqlparse` parsing + SELECT-only + keyword blocklist + table allowlist + mandatory per-table tenant filters
+- **Query Safety:** read-only transactions, five-second statement timeout, and 100-row response cap
+- **Auth:** JWT with configurable expiry plus live database account validation
 - **RBAC:** Admin-only routes with `require_role()` dependency
 - **CORS:** Configurable via env var
 - **Rate Limiting:** Per-endpoint via slowapi
@@ -219,18 +221,18 @@ npm run dev
 
 ## Testing
 
-**24 tests passing** across 6 test classes:
+**27 tests passing** across 6 test classes:
 
 | Class | Tests | Coverage |
 |-------|-------|----------|
 | `TestHealthEndpoint` | 1 | Root endpoint |
-| `TestSQLValidation` | 9 | SELECT-only, keywords, tables, edge cases |
+| `TestSQLValidation` | 11 | SELECT-only, keywords, tables, tenant filters, edge cases |
 | `TestJWTAuth` | 5 | Token validation, protected endpoints |
 | `TestUploadCSVValidation` | 2 | File type and column validation |
 | `TestAuthSignupValidation` | 3 | Password length, fields, login flow |
-| `TestRBAC` | 4 | Admin access, user denial, role in JWT |
+| `TestRBAC` | 5 | Admin access, user denial, live role/status enforcement |
 
-Run: `cd backend && pytest -v`
+Run: `cd backend && .venv/Scripts/python -m pytest -v` on Windows, or `.venv/bin/python -m pytest -v` on Linux/macOS.
 
 ---
 
@@ -243,8 +245,9 @@ GitHub Actions (`.github/workflows/ci.yml`):
 ---
 
 ## Known Gaps / Next Steps
-1. No email verification on signup
-2. No frontend tests (Jest/Playwright)
-3. No integration tests with real database
-4. No Swagger/OpenAPI customization beyond defaults
-5. No nginx reverse proxy config for production SSL
+1. Password-reset delivery is development-only and returns the token in the response
+2. No email verification on signup
+3. No frontend tests (Jest/Playwright)
+4. No integration tests with real PostgreSQL in CI
+5. No inventory CRUD, stock ledger, purchasing, or sales/POS workflow yet
+6. No production hosting configuration or monitoring

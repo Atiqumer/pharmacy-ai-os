@@ -35,8 +35,27 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    if (isAdmin) fetchUsers();
-  }, [isAdmin]);
+    if (!isAdmin) return;
+    let cancelled = false;
+
+    async function loadUsers() {
+      try {
+        const res = await authFetch(`${API_URL}/admin/users?page=1&limit=10`);
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (!cancelled) {
+          setUsers(data.users);
+          setTotal(data.total);
+          setPage(1);
+        }
+      } catch {
+        if (!cancelled) console.error('Failed to fetch users');
+      }
+    }
+
+    loadUsers();
+    return () => { cancelled = true; };
+  }, [isAdmin, authFetch]);
 
   const updateRole = async (userId, newRole) => {
     setActionLoading(userId);

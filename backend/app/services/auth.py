@@ -6,6 +6,7 @@ from typing import Optional
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from app.database import get_db_connection
 
 logger = logging.getLogger("rxos.auth")
 
@@ -30,7 +31,10 @@ def create_access_token(user_id: str, email: str, role: str = "user") -> str:
 
 def decode_token(token: str) -> dict:
     try:
-        return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        if not payload.get("sub") or not payload.get("email"):
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+        return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
     except jwt.InvalidTokenError:
@@ -43,10 +47,31 @@ async def get_current_user(
     if credentials is None:
         raise HTTPException(status_code=401, detail="Authentication required")
     payload = decode_token(credentials.credentials)
+
+    # Tokens only identify the session. Account status and authorization are
+    # loaded on every request so deactivation and role changes take effect
+    # immediately instead of waiting for an old JWT to expire.
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            'SELECT id, email, role, is_active FROM "User" WHERE id = %s;',
+            (payload["sub"],),
+        )
+        user = cursor.fetchone()
+    finally:
+        cursor.close()
+        conn.close()
+
+    if not user:
+        raise HTTPException(status_code=401, detail="User account no longer exists")
+    if not user["is_active"]:
+        raise HTTPException(status_code=403, detail="User account is deactivated")
+
     return {
-        "user_id": payload["sub"],
-        "email": payload["email"],
-        "role": payload.get("role", "user"),
+        "user_id": str(user["id"]),
+        "email": user["email"],
+        "role": user["role"],
     }
 
 
@@ -56,12 +81,7 @@ async def get_optional_user(
     if credentials is None:
         return None
     try:
-        payload = decode_token(credentials.credentials)
-        return {
-            "user_id": payload["sub"],
-            "email": payload["email"],
-            "role": payload.get("role", "user"),
-        }
+        return await get_current_user(credentials)
     except HTTPException:
         return None
 

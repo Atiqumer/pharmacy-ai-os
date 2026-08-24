@@ -2,6 +2,7 @@
 .env.local
 *.pyc
 env
+.venv/
 __init__.py
 __pycache__
 frontend/README.md

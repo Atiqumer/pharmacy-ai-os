@@ -65,6 +65,27 @@ class TestSQLValidation:
         assert "Product" in result
         assert "Batch" in result
 
+    def test_requires_owner_filter_for_every_table_alias(self):
+        from app.services.query_service import _validate_sql
+        owner_id = "12345678-1234-1234-1234-123456789012"
+        sql = (
+            'SELECT p.name FROM "Product" AS p '
+            'JOIN "Batch" AS b ON p.id = b."productId" '
+            f'WHERE p."ownerId" = \'{owner_id}\''
+        )
+        with pytest.raises(ValueError, match="Missing tenant filter.*b"):
+            _validate_sql(sql, owner_id)
+
+    def test_accepts_server_scoped_owner_filters(self):
+        from app.services.query_service import _validate_sql
+        owner_id = "12345678-1234-1234-1234-123456789012"
+        sql = (
+            'SELECT p.name FROM "Product" AS p '
+            'JOIN "Batch" AS b ON p.id = b."productId" '
+            f'WHERE p."ownerId" = \'{owner_id}\' AND b."ownerId" = \'{owner_id}\''
+        )
+        assert _validate_sql(sql, owner_id) == sql
+
     def test_rejects_empty_query(self):
         from app.services.query_service import _validate_sql
         with pytest.raises(ValueError, match="Empty SQL query"):
@@ -87,15 +108,29 @@ class TestJWTAuth:
         )
         assert response.status_code == 401
 
+    @patch("app.services.ai_service.client.chat.completions.create")
     @patch("app.services.ai_service.get_db_connection")
-    def test_protected_endpoint_with_valid_token(self, mock_db):
+    @patch("app.services.auth.get_db_connection")
+    def test_protected_endpoint_with_valid_token(self, mock_auth_db, mock_ai_db, mock_groq):
+        auth_conn = MagicMock()
+        auth_cursor = MagicMock()
+        auth_cursor.fetchone.return_value = {
+            "id": "12345678-1234-1234-1234-123456789012",
+            "email": "test@example.com",
+            "role": "user",
+            "is_active": True,
+        }
+        auth_conn.cursor.return_value = auth_cursor
+        mock_auth_db.return_value = auth_conn
+
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_cursor.fetchone.return_value = {"total": 0}
         mock_cursor.fetchall.return_value = []
         mock_cursor.closed = False
         mock_conn.cursor.return_value = mock_cursor
-        mock_db.return_value = mock_conn
+        mock_ai_db.return_value = mock_conn
+        mock_groq.return_value.choices = [MagicMock(message=MagicMock(content="All clear"))]
 
         token = self._get_test_token()
         response = client.get(
@@ -121,7 +156,9 @@ class TestUploadCSVValidation:
         from app.services.auth import create_access_token
         return create_access_token("test-user-id-12345678901234567", "test@example.com")
 
-    def test_rejects_non_csv_file(self):
+    @patch("app.services.auth.get_db_connection")
+    def test_rejects_non_csv_file(self, mock_db):
+        self._mock_active_user(mock_db)
         token = self._get_test_token()
         response = client.post(
             "/inventory/upload-csv",
@@ -130,7 +167,9 @@ class TestUploadCSVValidation:
         )
         assert response.status_code == 400
 
-    def test_rejects_missing_required_columns(self):
+    @patch("app.services.auth.get_db_connection")
+    def test_rejects_missing_required_columns(self, mock_db):
+        self._mock_active_user(mock_db)
         token = self._get_test_token()
         csv_content = "wrong_column,another_column\ndata1,data2"
         response = client.post(
@@ -139,6 +178,19 @@ class TestUploadCSVValidation:
             files={"file": ("test.csv", io.BytesIO(csv_content.encode()), "text/csv")},
         )
         assert response.status_code == 400
+
+    @staticmethod
+    def _mock_active_user(mock_db):
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.fetchone.return_value = {
+            "id": "12345678-1234-1234-1234-123456789012",
+            "email": "test@example.com",
+            "role": "user",
+            "is_active": True,
+        }
+        mock_conn.cursor.return_value = mock_cursor
+        mock_db.return_value = mock_conn
 
 
 class TestAuthSignupValidation:
@@ -189,7 +241,19 @@ class TestRBAC:
         return create_access_token("regular-user-id-12345678901", "user@test.com", "user")
 
     @patch("app.routes.admin.get_db_connection")
-    def test_admin_can_access_admin_routes(self, mock_db):
+    @patch("app.services.auth.get_db_connection")
+    def test_admin_can_access_admin_routes(self, mock_auth_db, mock_db):
+        auth_conn = MagicMock()
+        auth_cursor = MagicMock()
+        auth_cursor.fetchone.return_value = {
+            "id": "12345678-1234-1234-1234-123456789012",
+            "email": "admin@test.com",
+            "role": "admin",
+            "is_active": True,
+        }
+        auth_conn.cursor.return_value = auth_cursor
+        mock_auth_db.return_value = auth_conn
+
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_cursor.fetchone.return_value = {"total": 0}
@@ -204,7 +268,18 @@ class TestRBAC:
         )
         assert response.status_code == 200
 
-    def test_regular_user_cannot_access_admin_routes(self):
+    @patch("app.services.auth.get_db_connection")
+    def test_regular_user_cannot_access_admin_routes(self, mock_auth_db):
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.fetchone.return_value = {
+            "id": "12345678-1234-1234-1234-123456789012",
+            "email": "user@test.com",
+            "role": "user",
+            "is_active": True,
+        }
+        mock_conn.cursor.return_value = mock_cursor
+        mock_auth_db.return_value = mock_conn
         token = self._get_user_token()
         response = client.get(
             "/admin/users",
@@ -213,7 +288,8 @@ class TestRBAC:
         assert response.status_code == 403
 
     @patch("app.routes.auth.get_db_connection")
-    def test_user_role_included_in_me_response(self, mock_db):
+    @patch("app.services.auth.get_db_connection")
+    def test_user_role_included_in_me_response(self, mock_auth_db, mock_db):
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_cursor.fetchone.return_value = {
@@ -226,6 +302,11 @@ class TestRBAC:
         }
         mock_conn.cursor.return_value = mock_cursor
         mock_db.return_value = mock_conn
+        auth_conn = MagicMock()
+        auth_cursor = MagicMock()
+        auth_cursor.fetchone.return_value = mock_cursor.fetchone.return_value
+        auth_conn.cursor.return_value = auth_cursor
+        mock_auth_db.return_value = auth_conn
 
         from app.services.auth import create_access_token
         token = create_access_token("test-id-123456789012345678", "r@test.com", "admin")
@@ -236,5 +317,42 @@ class TestRBAC:
         assert response.status_code == 200
         assert response.json()["role"] == "admin"
 
-    def test_deactivated_user_cannot_login(self):
-        pass
+    @patch("app.routes.auth.get_db_connection")
+    def test_deactivated_user_cannot_login(self, mock_db):
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.fetchone.return_value = {
+            "id": "12345678-1234-1234-1234-123456789012",
+            "email": "disabled@test.com",
+            "full_name": "Disabled User",
+            "role": "user",
+            "is_active": False,
+        }
+        mock_conn.cursor.return_value = mock_cursor
+        mock_db.return_value = mock_conn
+
+        response = client.post(
+            "/auth/login",
+            json={"email": "disabled@test.com", "password": "password123"},
+        )
+        assert response.status_code == 403
+
+    @patch("app.services.auth.get_db_connection")
+    def test_existing_token_is_rejected_after_deactivation(self, mock_db):
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.fetchone.return_value = {
+            "id": "12345678-1234-1234-1234-123456789012",
+            "email": "disabled@test.com",
+            "role": "user",
+            "is_active": False,
+        }
+        mock_conn.cursor.return_value = mock_cursor
+        mock_db.return_value = mock_conn
+
+        token = self._get_user_token()
+        response = client.get(
+            "/auth/me",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 403

@@ -1,14 +1,3 @@
-fastapi
-uvicorn
-pydantic
-supabase
-pandas
-python-multipart
-groq
-python-dotenv
-psycopg2-binary
-pyjwt
-sqlparse
-slowapi
+-r requirements.txt
 pytest
 httpx

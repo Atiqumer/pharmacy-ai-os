@@ -2,6 +2,7 @@ import os
 import re
 import logging
 import sqlparse
+from uuid import UUID
 from groq import Groq
 from app.database import get_db_connection
 
@@ -18,10 +19,20 @@ BLOCKED_KEYWORDS = {
 }
 
 
-def _validate_sql(sql: str) -> str:
+TABLE_REFERENCE_PATTERN = re.compile(
+    r'(?:FROM|JOIN)\s+"?(Product|Batch|Supplier)"?\s+(?:AS\s+)?([A-Za-z_][A-Za-z0-9_]*)',
+    re.IGNORECASE,
+)
+
+
+def _validate_sql(sql: str, owner_id: str = None) -> str:
     parsed = sqlparse.parse(sql)
-    if not parsed:
+    if not parsed or not sql.strip():
         raise ValueError("Empty SQL query")
+    if len(parsed) != 1:
+        raise ValueError("Only one SQL statement is permitted")
+    if "--" in sql or "/*" in sql or "*/" in sql:
+        raise ValueError("SQL comments are not permitted")
 
     stmt = parsed[0]
     stmt_type = stmt.get_type()
@@ -36,9 +47,29 @@ def _validate_sql(sql: str) -> str:
 
     table_pattern = r'(?:FROM|JOIN)\s+"?(\w+)"?'
     referenced_tables = set(re.findall(table_pattern, sql, re.IGNORECASE))
+    if not referenced_tables:
+        raise ValueError("A query must reference an allowed inventory table")
     for table in referenced_tables:
         if table not in ALLOWED_TABLES:
             raise ValueError(f"Referenced table '{table}' is not in the allowed list.")
+
+    if owner_id:
+        try:
+            normalized_owner_id = str(UUID(owner_id))
+        except (TypeError, ValueError):
+            raise ValueError("Invalid inventory owner identifier")
+
+        references = TABLE_REFERENCE_PATTERN.findall(sql)
+        if len(references) != len(referenced_tables):
+            raise ValueError("Every inventory table must use an explicit alias")
+
+        for _, alias in references:
+            owner_filter = re.compile(
+                rf'\b{re.escape(alias)}\."ownerId"\s*=\s*\'{re.escape(normalized_owner_id)}\'',
+                re.IGNORECASE,
+            )
+            if not owner_filter.search(sql):
+                raise ValueError(f"Missing tenant filter for table alias '{alias}'")
 
     return sql.strip().rstrip(";").strip()
 
@@ -56,9 +87,10 @@ def execute_natural_query(user_question: str, owner_id: str = None):
     1. Respond ONLY with a single executable SELECT query. No explanations, no markdown, no code fences.
     2. Never generate destructive commands. Only SELECT queries.
     3. Use exact casing for table names and column names inside double quotes where specified.
-    4. Always filter by "ownerId" = '{owner_id}' in every FROM/JOIN clause to scope results to the current user.
-    5. Always alias aggregate columns for readability.
-    6. Limit results to 100 rows maximum unless the user specifies otherwise.
+    4. Every table MUST use an explicit short alias, for example: FROM "Product" AS p.
+    5. For EVERY table alias, add an exact filter: alias."ownerId" = '{owner_id}'. This applies to joined tables too.
+    6. Always alias aggregate columns for readability.
+    7. Limit results to 100 rows maximum.
     """
 
     if owner_id:
@@ -79,15 +111,21 @@ def execute_natural_query(user_question: str, owner_id: str = None):
         sql_query = response.choices[0].message.content.strip()
         sql_query = re.sub(r"```sql|```", "", sql_query).strip()
 
-        sql_query = _validate_sql(sql_query)
+        sql_query = _validate_sql(sql_query, owner_id)
 
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute(sql_query)
-        rows = cursor.fetchall()
-
-        cursor.close()
-        conn.close()
+        try:
+            cursor.execute("SET TRANSACTION READ ONLY")
+            cursor.execute("SET LOCAL statement_timeout = '5s'")
+            cursor.execute(sql_query)
+            rows = cursor.fetchmany(101)
+            if len(rows) > 100:
+                rows = rows[:100]
+        finally:
+            conn.rollback()
+            cursor.close()
+            conn.close()
 
         return {"status": "success", "query_generated": sql_query, "data": rows}
 

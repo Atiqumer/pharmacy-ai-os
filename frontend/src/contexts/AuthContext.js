@@ -11,6 +11,9 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Authentication storage is an external browser system. Hydrate it once
+    // after mounting to keep server rendering independent from localStorage.
+    /* eslint-disable react-hooks/set-state-in-effect */
     const stored = localStorage.getItem('rxos_token');
     const storedUser = localStorage.getItem('rxos_user');
     if (stored && storedUser) {
@@ -18,6 +21,7 @@ export function AuthProvider({ children }) {
       setUser(JSON.parse(storedUser));
     }
     setLoading(false);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
   const login = async (email, password) => {

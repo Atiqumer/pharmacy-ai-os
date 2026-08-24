@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '@/contexts/AuthContext';
@@ -21,7 +21,7 @@ export default function Home() {
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState(null);
   const [isListening, setIsListening] = useState(false);
-  const [speechRecognition, setSpeechRecognition] = useState(null);
+  const speechRecognition = useRef(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -45,17 +45,19 @@ export default function Home() {
           setSearchQuery(transcript);
         };
 
-        setSpeechRecognition(recognition);
+        speechRecognition.current = recognition;
       }
+      return () => speechRecognition.current?.abort();
     }
   }, []);
 
   const toggleVoiceListening = () => {
-    if (!speechRecognition) return alert('Voice recognition is not supported in this browser. Try Chrome or Edge.');
+    const recognition = speechRecognition.current;
+    if (!recognition) return alert('Voice recognition is not supported in this browser. Try Chrome or Edge.');
     if (isListening) {
-      speechRecognition.stop();
+      recognition.stop();
     } else {
-      speechRecognition.start();
+      recognition.start();
     }
   };
 
@@ -252,7 +254,7 @@ export default function Home() {
                 <ReactMarkdown>{briefing}</ReactMarkdown>
               </div>
             ) : (
-              <p className="text-slate-500 italic text-center pt-12">Click "Generate Live Insights" to stream real-time analysis from Llama 3.3.</p>
+              <p className="text-slate-500 italic text-center pt-12">Click &quot;Generate Live Insights&quot; to stream real-time analysis from Llama 3.3.</p>
             )}
           </div>
         </section>

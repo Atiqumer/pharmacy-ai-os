@@ -49,8 +49,8 @@ def init_db():
                 name VARCHAR(255) NOT NULL,
                 "genericName" VARCHAR(255),
                 category VARCHAR(100),
-                "minStockLevel" INT DEFAULT 10,
-                "ownerId" UUID REFERENCES "User"(id) ON DELETE CASCADE,
+                "minStockLevel" INT NOT NULL DEFAULT 10 CHECK ("minStockLevel" >= 0),
+                "ownerId" UUID NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
                 created_at TIMESTAMP DEFAULT NOW()
             );
         """)
@@ -59,7 +59,7 @@ def init_db():
             CREATE TABLE IF NOT EXISTS "Supplier" (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 name VARCHAR(255) NOT NULL,
-                "ownerId" UUID REFERENCES "User"(id) ON DELETE CASCADE,
+                "ownerId" UUID NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
                 created_at TIMESTAMP DEFAULT NOW()
             );
         """)
@@ -68,27 +68,46 @@ def init_db():
             CREATE TABLE IF NOT EXISTS "Batch" (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 "batchNumber" VARCHAR(100) NOT NULL,
-                "productId" UUID REFERENCES "Product"(id) ON DELETE CASCADE,
+                "productId" UUID NOT NULL REFERENCES "Product"(id) ON DELETE CASCADE,
                 "supplierId" UUID REFERENCES "Supplier"(id) ON DELETE SET NULL,
-                quantity INT NOT NULL DEFAULT 0,
-                "costPrice" FLOAT NOT NULL DEFAULT 0,
-                "retailPrice" FLOAT NOT NULL DEFAULT 0,
+                quantity INT NOT NULL DEFAULT 0 CHECK (quantity >= 0),
+                "costPrice" NUMERIC(12, 2) NOT NULL DEFAULT 0 CHECK ("costPrice" >= 0),
+                "retailPrice" NUMERIC(12, 2) NOT NULL DEFAULT 0 CHECK ("retailPrice" >= 0),
                 "expiryDate" DATE NOT NULL,
-                "ownerId" UUID REFERENCES "User"(id) ON DELETE CASCADE,
+                "ownerId" UUID NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
                 created_at TIMESTAMP DEFAULT NOW()
             );
         """)
 
+        # Idempotent schema upgrades for databases created by earlier RxOS
+        # versions. These indexes also provide conflict targets for safe CSV
+        # upserts and keep each tenant's catalogue independent.
+        cursor.execute(
+            'CREATE UNIQUE INDEX IF NOT EXISTS product_owner_name_uq '
+            'ON "Product" ("ownerId", name);'
+        )
+        cursor.execute(
+            'CREATE UNIQUE INDEX IF NOT EXISTS batch_owner_product_number_uq '
+            'ON "Batch" ("ownerId", "productId", "batchNumber");'
+        )
+        cursor.execute(
+            'CREATE UNIQUE INDEX IF NOT EXISTS supplier_owner_name_uq '
+            'ON "Supplier" ("ownerId", name);'
+        )
+        cursor.execute('CREATE INDEX IF NOT EXISTS batch_owner_expiry_idx ON "Batch" ("ownerId", "expiryDate");')
+        cursor.execute('CREATE INDEX IF NOT EXISTS batch_owner_product_idx ON "Batch" ("ownerId", "productId");')
+
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS "PasswordReset" (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                "userId" UUID REFERENCES "User"(id) ON DELETE CASCADE,
+                "userId" UUID NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
                 token VARCHAR(255) NOT NULL,
                 expires_at TIMESTAMP NOT NULL,
                 used BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT NOW()
             );
         """)
+        cursor.execute('CREATE INDEX IF NOT EXISTS password_reset_token_idx ON "PasswordReset" (token);')
 
         conn.commit()
         logger.info("Database tables initialized successfully")

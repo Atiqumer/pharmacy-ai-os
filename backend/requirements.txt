@@ -1,7 +1,6 @@
 fastapi
 uvicorn
 pydantic
-supabase
 pandas
 python-multipart
 groq
@@ -10,3 +9,4 @@ psycopg2-binary
 pyjwt
 sqlparse
 slowapi
+email-validator

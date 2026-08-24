@@ -74,6 +74,8 @@ async def update_user_role(
 ):
     if req.role not in ("user", "admin"):
         raise HTTPException(status_code=400, detail="Role must be 'user' or 'admin'")
+    if req.user_id == user["user_id"]:
+        raise HTTPException(status_code=400, detail="Cannot change your own role")
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -108,6 +110,9 @@ async def toggle_user_active(
     req: ToggleUserActive,
     user: dict = Depends(require_role("admin")),
 ):
+    if req.user_id == user["user_id"]:
+        raise HTTPException(status_code=400, detail="Cannot change your own account status")
+
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
