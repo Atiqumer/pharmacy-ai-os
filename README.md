@@ -17,13 +17,16 @@ Implemented:
 - Searchable inventory dashboard with stock, expiry, and valuation KPIs
 - Manual batch creation, controlled stock adjustments, and auditable movement history
 - Supplier directory, multi-line purchase orders, and atomic goods receiving
+- Reorder suggestions based on minimum-stock targets and previous supplier/cost
+- Versioned Alembic migrations and real-PostgreSQL CI tests
+- Hashed password-reset tokens with SMTP delivery and session invalidation
 - AI morning briefing through Groq
 - Tenant-validated, read-only natural-language inventory queries
 - Backend unit tests and GitHub Actions CI
 
 Not yet production-ready:
 
-- Password reset still exposes a development token instead of sending email
+- SMTP must be configured before production password reset can operate
 - No real-database integration tests
 - No product edit UI, printable purchase documents, or sales/POS
 - No cloud deployment, backups, monitoring, or alert delivery
@@ -73,7 +76,7 @@ npm run lint -- --max-warnings=0
 npm run build
 ```
 
-Current verified baseline: 40 backend tests pass, ESLint passes with zero warnings, and the Next.js production build succeeds.
+Current verified baseline: 43 backend unit tests pass, two PostgreSQL integration tests run in CI, ESLint passes with zero warnings, and the Next.js production build succeeds.
 
 ## Inventory CSV format
 
@@ -89,4 +92,4 @@ See `mock_inventory.csv` for an example.
 
 ## Product direction
 
-The next milestone is reorder intelligence and production readiness: reorder suggestions, supplier edit controls, printable purchase documents, real-PostgreSQL integration tests, and production password reset. Sales/POS should follow once these workflows are deployed and validated with real pharmacy users.
+See `DEPLOYMENT.md` for the production migration, SMTP, health-check, backup, and deployment checklist. The next milestone is staging deployment and real-pharmacy workflow validation, followed by printable purchasing documents and sales/POS.

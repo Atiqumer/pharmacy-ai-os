@@ -1,7 +1,6 @@
 import os
 import logging
-from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -9,27 +8,16 @@ from slowapi.errors import RateLimitExceeded
 
 from app.routes import inventory, query, analytics, auth, admin, suppliers, purchasing
 from app.middleware.logging import log_requests
-from app.database import init_db
 
 logger = logging.getLogger("rxos")
 
 limiter = Limiter(key_func=get_remote_address)
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    try:
-        init_db()
-    except Exception as e:
-        logger.warning(f"DB init skipped: {e}")
-    yield
-
-
 app = FastAPI(
     title="AI-Powered Pharmacy OS Engine",
     description="The intelligent data automation layer for independent medical stores.",
     version="2.0.0",
-    lifespan=lifespan,
 )
 
 app.state.limiter = limiter
@@ -68,3 +56,26 @@ async def read_root(request: Request):
         "system": "AI Pharmacy Operating System Backend Engine",
         "version": "2.0.0",
     }
+
+
+@app.get("/health/live", include_in_schema=False)
+async def health_live():
+    return {"status": "alive"}
+
+
+@app.get("/health/ready", include_in_schema=False)
+async def health_ready():
+    from app.database import get_db_connection
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT version_num FROM alembic_version LIMIT 1;")
+        migration = cursor.fetchone()
+        return {"status": "ready", "migration": migration["version_num"]}
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Database is not ready") from exc
+    finally:
+        if "cursor" in locals():
+            cursor.close()
+        if "conn" in locals():
+            conn.close()

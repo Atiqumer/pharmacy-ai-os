@@ -1,6 +1,7 @@
 import os
 import io
 import json
+import hashlib
 import pytest
 from unittest.mock import patch, MagicMock, PropertyMock
 
@@ -290,6 +291,34 @@ class TestInventoryReporting:
         )
         assert response.status_code == 422
 
+    @patch("app.routes.analytics.get_db_connection")
+    @patch("app.services.auth.get_db_connection")
+    def test_reorder_suggestions_are_tenant_scoped(self, mock_auth_db, mock_analytics_db):
+        self._mock_auth(mock_auth_db)
+        conn = MagicMock()
+        cursor = MagicMock()
+        cursor.fetchall.return_value = [{
+            "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            "name": "Panadol",
+            "genericName": "Paracetamol",
+            "minStockLevel": 10,
+            "current_stock": 4,
+            "suggested_quantity": 16,
+            "costPrice": 5,
+            "supplier_name": "Health Distributors",
+        }]
+        conn.cursor.return_value = cursor
+        mock_analytics_db.return_value = conn
+
+        response = client.get(
+            "/analytics/reorder-suggestions",
+            headers={"Authorization": f"Bearer {self._token()}"},
+        )
+        assert response.status_code == 200
+        assert response.json()["suggestions"][0]["suggested_quantity"] == 16
+        owner_id = "12345678-1234-1234-1234-123456789012"
+        assert cursor.execute.call_args.args[1] == (owner_id, owner_id, owner_id, owner_id)
+
 
 class TestStockLedger:
     owner_id = "12345678-1234-1234-1234-123456789012"
@@ -448,6 +477,46 @@ class TestAuthSignupValidation:
             json={"email": "nonexistent@example.com", "password": "whatever123"},
         )
         assert response.status_code == 401
+
+
+class TestPasswordResetSecurity:
+    @patch.dict(os.environ, {"PASSWORD_RESET_DELIVERY": "development", "APP_ENV": "development"})
+    @patch("app.routes.auth.get_db_connection")
+    def test_reset_request_stores_hash_not_raw_token(self, mock_db):
+        conn = MagicMock()
+        cursor = MagicMock()
+        cursor.fetchone.return_value = {"id": "12345678-1234-1234-1234-123456789012"}
+        conn.cursor.return_value = cursor
+        mock_db.return_value = conn
+
+        response = client.post("/auth/password-reset-request", json={"email": "reset@example.com"})
+        assert response.status_code == 200
+        raw_token = response.json()["reset_token"]
+        insert_call = next(
+            call for call in cursor.execute.call_args_list
+            if 'INSERT INTO "PasswordReset"' in call.args[0]
+        )
+        stored_hash = insert_call.args[1][1]
+        assert stored_hash == hashlib.sha256(raw_token.encode()).hexdigest()
+        assert raw_token != stored_hash
+
+    @patch("app.routes.auth.get_db_connection")
+    def test_reset_confirmation_queries_by_token_hash(self, mock_db):
+        conn = MagicMock()
+        cursor = MagicMock()
+        cursor.fetchone.return_value = {"userId": "12345678-1234-1234-1234-123456789012"}
+        conn.cursor.return_value = cursor
+        mock_db.return_value = conn
+
+        response = client.post(
+            "/auth/password-reset-confirm",
+            json={"token": "raw-reset-token", "new_password": "new-password-123"},
+        )
+        assert response.status_code == 200
+        select_call = cursor.execute.call_args_list[0]
+        assert "token_hash" in select_call.args[0]
+        assert select_call.args[1][0] == hashlib.sha256(b"raw-reset-token").hexdigest()
+        assert any("token_valid_after = NOW()" in call.args[0] for call in cursor.execute.call_args_list)
 
 
 class TestRBAC:

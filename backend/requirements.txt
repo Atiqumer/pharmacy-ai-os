@@ -10,3 +10,4 @@ pyjwt
 sqlparse
 slowapi
 email-validator
+alembic

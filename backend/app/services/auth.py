@@ -55,7 +55,7 @@ async def get_current_user(
     cursor = conn.cursor()
     try:
         cursor.execute(
-            'SELECT id, email, role, is_active FROM "User" WHERE id = %s;',
+            'SELECT id, email, role, is_active, token_valid_after FROM "User" WHERE id = %s;',
             (payload["sub"],),
         )
         user = cursor.fetchone()
@@ -67,6 +67,12 @@ async def get_current_user(
         raise HTTPException(status_code=401, detail="User account no longer exists")
     if not user["is_active"]:
         raise HTTPException(status_code=403, detail="User account is deactivated")
+    token_issued_at = datetime.fromtimestamp(payload["iat"], tz=timezone.utc)
+    valid_after = user.get("token_valid_after") or datetime(1970, 1, 1)
+    if valid_after.tzinfo is None:
+        valid_after = valid_after.replace(tzinfo=timezone.utc)
+    if token_issued_at < valid_after:
+        raise HTTPException(status_code=401, detail="Session is no longer valid")
 
     return {
         "user_id": str(user["id"]),

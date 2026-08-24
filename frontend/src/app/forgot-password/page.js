@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
@@ -13,6 +13,15 @@ export default function ForgotPasswordPage() {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    const token = new URLSearchParams(window.location.search).get('token');
+    if (token) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setResetToken(token);
+      setStep(2);
+    }
+  }, []);
+
   const handleRequestReset = async (e) => {
     e.preventDefault();
     setError('');
@@ -24,9 +33,14 @@ export default function ForgotPasswordPage() {
         body: JSON.stringify({ email }),
       });
       const data = await res.json();
-      if (data.reset_token) setResetToken(data.reset_token);
+      if (!res.ok) throw new Error(data.detail || 'Failed to send reset request');
+      if (data.reset_token) {
+        setResetToken(data.reset_token);
+        setStep(2);
+      } else {
+        setStep(4);
+      }
       setMessage(data.message);
-      setStep(2);
     } catch (err) {
       setError('Failed to send reset request');
     } finally {
@@ -141,6 +155,12 @@ export default function ForgotPasswordPage() {
                 Go to Sign In
               </Link>
             </div>
+          )}
+
+          {step === 4 && (
+            <p className="text-center text-sm text-slate-400">
+              Check your email for a secure reset link. You can close this page.
+            </p>
           )}
 
           <div className="mt-4 text-center">

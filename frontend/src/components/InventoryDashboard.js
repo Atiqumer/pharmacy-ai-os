@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 const money = new Intl.NumberFormat('en-PK', {
@@ -35,6 +36,7 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
   const [showMovements, setShowMovements] = useState(false);
   const [movements, setMovements] = useState([]);
   const [movementTotal, setMovementTotal] = useState(0);
+  const [reorderSuggestions, setReorderSuggestions] = useState([]);
   const [actionLoading, setActionLoading] = useState(false);
   const limit = 10;
 
@@ -50,18 +52,19 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
     });
 
     try {
-      const [summaryResponse, itemsResponse] = await Promise.all([
+      const [summaryResponse, itemsResponse, reorderResponse] = await Promise.all([
         authFetch(`${API_URL}/inventory/summary`),
         authFetch(`${API_URL}/inventory/items?${params}`),
+        authFetch(`${API_URL}/analytics/reorder-suggestions`),
       ]);
-      if (!summaryResponse.ok || !itemsResponse.ok) throw new Error('Inventory data could not be loaded');
-      const [summaryData, itemsData] = await Promise.all([
-        summaryResponse.json(),
-        itemsResponse.json(),
+      if (!summaryResponse.ok || !itemsResponse.ok || !reorderResponse.ok) throw new Error('Inventory data could not be loaded');
+      const [summaryData, itemsData, reorderData] = await Promise.all([
+        summaryResponse.json(), itemsResponse.json(), reorderResponse.json(),
       ]);
       setSummary(summaryData);
       setItems(itemsData.items);
       setTotal(itemsData.total);
+      setReorderSuggestions(reorderData.suggestions);
       setPage(targetPage);
     } catch (err) {
       setError(err.message || 'Inventory data could not be loaded');
@@ -193,6 +196,25 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
           </div>
         ))}
       </div>
+
+      {reorderSuggestions.length > 0 && (
+        <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-5">
+          <div className="flex justify-between items-start gap-4 mb-4">
+            <div><h3 className="font-semibold text-amber-200">Reorder suggestions</h3><p className="text-xs text-slate-400 mt-1">Targets approximately twice the configured minimum stock level.</p></div>
+            <Link href="/purchasing" className="text-sm text-cyan-300 whitespace-nowrap">Open purchasing →</Link>
+          </div>
+          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {reorderSuggestions.slice(0, 6).map((suggestion) => (
+              <div key={suggestion.product_id} className="bg-slate-950/70 rounded-lg p-3 text-sm">
+                <p className="font-medium">{suggestion.product_name}</p>
+                <p className="text-xs text-slate-500">{suggestion.generic_name}</p>
+                <div className="flex justify-between mt-3"><span className="text-slate-400">Stock {suggestion.current_stock} / min {suggestion.min_stock_level}</span><span className="font-semibold text-amber-300">Order {suggestion.suggested_quantity}</span></div>
+                <p className="text-xs text-slate-500 mt-1">{suggestion.last_supplier || 'No previous supplier'}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
         <div className="p-4 border-b border-slate-800 flex flex-col lg:flex-row gap-3 justify-between">

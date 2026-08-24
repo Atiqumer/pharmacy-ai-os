@@ -16,7 +16,8 @@ A full-stack application that combines a Python/FastAPI backend with a Next.js/R
 - **RBAC:** Role-based access control (admin/user)
 - **SQL Validation:** `sqlparse` for injection protection
 - **Rate Limiting:** `slowapi` (per-endpoint limits)
-- **Testing:** `pytest` + `httpx`
+- **Testing:** `pytest` + `httpx`, including PostgreSQL integration tests in CI
+- **Migrations:** Alembic
 - **Env Management:** `python-dotenv`
 - **Deployment:** Docker + Docker Compose
 
@@ -124,6 +125,7 @@ pharmacy/
 | POST | `/purchasing/orders/{id}/submit` | Yes | any | 20/min | Submit draft order |
 | POST | `/purchasing/orders/{id}/receive` | Yes | any | 20/min | Atomically receive goods into inventory |
 | GET | `/analytics/morning-briefing` | Yes | any | 5/min | AI briefing |
+| GET | `/analytics/reorder-suggestions` | Yes | any | 15/min | Deterministic low-stock reorder targets |
 | GET | `/query/ask?q=` | Yes | any | 15/min | NL→SQL query |
 
 ---
@@ -135,6 +137,7 @@ pharmacy/
 - Two roles: `user` (default) and `admin`
 - Admin can manage users: list, change roles, activate/deactivate, delete
 - Password reset flow with token-based confirmation
+- Password reset stores SHA-256 token hashes, supports SMTP delivery, and invalidates old sessions
 - Deactivated users cannot log in
 
 ### 2. Multi-Tenancy
@@ -200,7 +203,7 @@ pharmacy/
 | `GoodsReceiptItem` | receiptId, purchaseOrderItemId, batchId, quantity |
 | `PasswordReset` | id (UUID), userId (FK→User), token, expires_at, used |
 
-Tables auto-create on startup via `init_db()`.
+Schema changes are versioned in `backend/migrations`; containers apply `alembic upgrade head` before starting.
 
 ---
 
@@ -258,7 +261,7 @@ npm run dev
 
 ## Testing
 
-**40 tests passing** across 10 test classes:
+**43 unit tests passing locally**, plus **2 PostgreSQL integration tests in CI**.
 
 | Class | Tests | Coverage |
 |-------|-------|----------|
@@ -281,14 +284,14 @@ Run: `cd backend && .venv/Scripts/python -m pytest -v` on Windows, or `.venv/bin
 
 GitHub Actions (`.github/workflows/ci.yml`):
 - **Backend:** Python 3.11, pip install, pytest
+- **PostgreSQL CI:** PostgreSQL 16 service, Alembic upgrade, schema/constraint integration tests
 - **Frontend:** Node.js 20, npm ci, lint, build
 
 ---
 
 ## Known Gaps / Next Steps
-1. Password-reset delivery is development-only and returns the token in the response
-2. No email verification on signup
-3. No frontend tests (Jest/Playwright)
-4. No integration tests with real PostgreSQL in CI
-5. No supplier edit UI, printable purchasing documents, sales/POS, or returns workflow yet
-6. No production hosting configuration or monitoring
+1. No email verification on signup
+2. No frontend tests (Jest/Playwright)
+3. No supplier edit UI, printable purchasing documents, sales/POS, or returns workflow yet
+4. Production hosting, backups, and monitoring must be provisioned using `DEPLOYMENT.md`
+5. Existing pre-Alembic databases require a reviewed adoption migration before stamping

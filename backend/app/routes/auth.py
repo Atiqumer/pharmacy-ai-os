@@ -2,6 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
 from app.database import get_db_connection
 from app.services.auth import create_access_token, get_current_user, require_role
+from app.services.email_service import send_password_reset_email
+from starlette.concurrency import run_in_threadpool
+import hashlib
+import os
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -158,6 +162,14 @@ async def get_me(current_user: dict = Depends(get_current_user)):
 @router.post("/password-reset-request")
 async def password_reset_request(req: PasswordResetRequest):
     import secrets
+    delivery_mode = os.getenv("PASSWORD_RESET_DELIVERY", "disabled").lower()
+    if delivery_mode == "disabled":
+        raise HTTPException(status_code=503, detail="Password reset email delivery is not configured")
+    if delivery_mode == "smtp" and (not os.getenv("SMTP_HOST") or not os.getenv("SMTP_FROM_EMAIL")):
+        raise HTTPException(status_code=503, detail="Password reset email delivery is not configured")
+    if delivery_mode not in ("smtp", "development"):
+        raise HTTPException(status_code=503, detail="Password reset email delivery is not configured")
+
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
@@ -168,17 +180,26 @@ async def password_reset_request(req: PasswordResetRequest):
             return {"message": "If the email exists, a reset link has been sent."}
 
         reset_token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(reset_token.encode("utf-8")).hexdigest()
         cursor.execute(
-            """INSERT INTO "PasswordReset" (id, "userId", token, expires_at)
+            'UPDATE "PasswordReset" SET used = TRUE WHERE "userId" = %s AND used = FALSE;',
+            (str(user["id"]),),
+        )
+        cursor.execute(
+            """INSERT INTO "PasswordReset" (id, "userId", token_hash, expires_at)
                VALUES (gen_random_uuid(), %s, %s, NOW() + INTERVAL '1 hour');""",
-            (str(user["id"]), reset_token),
+            (str(user["id"]), token_hash),
         )
         conn.commit()
 
-        return {
-            "message": "If the email exists, a reset link has been sent.",
-            "reset_token": reset_token,
-        }
+        if delivery_mode == "smtp":
+            await run_in_threadpool(send_password_reset_email, req.email, reset_token)
+        elif delivery_mode == "development" and os.getenv("APP_ENV", "development") != "production":
+            return {
+                "message": "Development reset token generated.",
+                "reset_token": reset_token,
+            }
+        return {"message": "If the email exists, a reset link has been sent."}
 
     finally:
         cursor.close()
@@ -190,10 +211,11 @@ async def password_reset_confirm(req: PasswordResetConfirm):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
+        token_hash = hashlib.sha256(req.token.encode("utf-8")).hexdigest()
         cursor.execute(
             """SELECT "userId" FROM "PasswordReset"
-               WHERE token = %s AND used = FALSE AND expires_at > NOW();""",
-            (req.token,),
+               WHERE token_hash = %s AND used = FALSE AND expires_at > NOW();""",
+            (token_hash,),
         )
         reset = cursor.fetchone()
 
@@ -204,12 +226,12 @@ async def password_reset_confirm(req: PasswordResetConfirm):
             raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
 
         cursor.execute(
-            'UPDATE "User" SET password_hash = crypt(%s, gen_salt(\'bf\')) WHERE id = %s;',
+            'UPDATE "User" SET password_hash = crypt(%s, gen_salt(\'bf\')), token_valid_after = NOW() WHERE id = %s;',
             (req.new_password, str(reset["userId"])),
         )
         cursor.execute(
-            'UPDATE "PasswordReset" SET used = TRUE WHERE token = %s;',
-            (req.token,),
+            'UPDATE "PasswordReset" SET used = TRUE WHERE "userId" = %s;',
+            (str(reset["userId"]),),
         )
         conn.commit()
 
