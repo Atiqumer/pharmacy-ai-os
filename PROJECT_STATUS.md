@@ -52,7 +52,7 @@ pharmacy/
 │   ├── tests/
 │   │   ├── __init__.py
 │   │   ├── conftest.py
-│   │   └── test_api.py             # 27 unit tests
+│   │   └── test_api.py             # 30 unit tests
 │   └── app/
 │       ├── main.py                 # FastAPI entrypoint, lifespan, CORS, rate limiting
 │       ├── database.py             # PostgreSQL connection + auto table init
@@ -108,6 +108,8 @@ pharmacy/
 | PUT | `/admin/users/active` | Yes | admin | 10/min | Activate/deactivate user |
 | DELETE | `/admin/users/{id}` | Yes | admin | 5/min | Delete user |
 | POST | `/inventory/upload-csv` | Yes | any | 10/min | Upload CSV inventory |
+| GET | `/inventory/summary` | Yes | any | 30/min | Stock, expiry, and valuation KPIs |
+| GET | `/inventory/items` | Yes | any | 30/min | Searchable/filterable batch inventory |
 | GET | `/analytics/morning-briefing` | Yes | any | 5/min | AI briefing |
 | GET | `/query/ask?q=` | Yes | any | 15/min | NL→SQL query |
 
@@ -133,16 +135,22 @@ pharmacy/
 - Validates size, row count, text, dates, quantities, and prices before writing
 - Safely upserts Product, Supplier, and Batch records scoped to the user
 
-### 4. AI Morning Briefing
+### 4. Inventory Operations Dashboard
+- Tenant-scoped batch inventory with server-side search and pagination
+- Low-stock, in-stock, expiring, expired, and valid filters
+- Product/unit totals, inventory cost, retail value, and potential margin
+- Automatic dashboard refresh after a successful import
+
+### 5. AI Morning Briefing
 - Pulls SKU count, low-stock items, items expiring within 90 days
 - Owner-scoped data sent to Llama 3.3 via Groq
 - Markdown briefing rendered with react-markdown
 
-### 5. Conversational Database Explorer
+### 6. Conversational Database Explorer
 - Plain English question → LLM → validated SQL → results
 - Voice input via Web Speech API (Chrome/Edge)
 
-### 6. Security
+### 7. Security
 - **SQL Injection:** `sqlparse` parsing + SELECT-only + keyword blocklist + table allowlist + mandatory per-table tenant filters
 - **Query Safety:** read-only transactions, five-second statement timeout, and 100-row response cap
 - **Auth:** JWT with configurable expiry plus live database account validation
@@ -221,7 +229,7 @@ npm run dev
 
 ## Testing
 
-**27 tests passing** across 6 test classes:
+**30 tests passing** across 7 test classes:
 
 | Class | Tests | Coverage |
 |-------|-------|----------|
@@ -229,6 +237,7 @@ npm run dev
 | `TestSQLValidation` | 11 | SELECT-only, keywords, tables, tenant filters, edge cases |
 | `TestJWTAuth` | 5 | Token validation, protected endpoints |
 | `TestUploadCSVValidation` | 2 | File type and column validation |
+| `TestInventoryReporting` | 3 | Summary, list filters, and tenant-scoped query parameters |
 | `TestAuthSignupValidation` | 3 | Password length, fields, login flow |
 | `TestRBAC` | 5 | Admin access, user denial, live role/status enforcement |
 
@@ -249,5 +258,5 @@ GitHub Actions (`.github/workflows/ci.yml`):
 2. No email verification on signup
 3. No frontend tests (Jest/Playwright)
 4. No integration tests with real PostgreSQL in CI
-5. No inventory CRUD, stock ledger, purchasing, or sales/POS workflow yet
+5. No manual inventory CRUD, stock ledger, purchasing, or sales/POS workflow yet
 6. No production hosting configuration or monitoring

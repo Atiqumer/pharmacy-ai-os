@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
+import InventoryDashboard from '@/components/InventoryDashboard';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
@@ -16,6 +17,7 @@ export default function Home() {
   const [loadingBriefing, setLoadingBriefing] = useState(false);
   const [briefing, setBriefing] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
+  const [inventoryRefreshKey, setInventoryRefreshKey] = useState(0);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
@@ -75,7 +77,10 @@ export default function Home() {
         body: formData,
       });
       const data = await res.json();
-      if (res.ok) setStatusMessage('Inventory CSV successfully imported!');
+      if (res.ok) {
+        setStatusMessage('Inventory CSV successfully imported!');
+        setInventoryRefreshKey((key) => key + 1);
+      }
       else setStatusMessage(`Error: ${data.detail || 'Upload failed'}`);
     } catch (err) {
       setStatusMessage('Network error connecting to backend.');
@@ -131,8 +136,8 @@ export default function Home() {
   if (!user) return null;
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 p-8 font-sans">
-      <div className="max-w-4xl mx-auto space-y-8">
+    <main className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 font-sans">
+      <div className="max-w-7xl mx-auto space-y-8">
         
         {/* Header Block */}
         <header className="border-b border-slate-800 pb-6 flex justify-between items-start">
@@ -163,9 +168,11 @@ export default function Home() {
           </div>
         </header>
 
+        <InventoryDashboard authFetch={authFetch} refreshKey={inventoryRefreshKey} />
+
         {/* Data Ingestion Panel */}
         <section className="bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-xl">
-          <h2 className="text-xl font-semibold text-slate-200 mb-4">1. Import Legacy Sales/Inventory</h2>
+          <h2 className="text-xl font-semibold text-slate-200 mb-4">Import inventory CSV</h2>
           <form onSubmit={handleUpload} className="flex flex-col sm:flex-row gap-4 items-center">
             <input 
               type="file" accept=".csv"
@@ -181,7 +188,7 @@ export default function Home() {
 
         {/* Conversational AI Explorer Box */}
         <section className="bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-xl space-y-4">
-          <h2 className="text-xl font-semibold text-slate-200">2. Conversational Database Explorer (Type or Speak)</h2>
+          <h2 className="text-xl font-semibold text-slate-200">Conversational Database Explorer (Type or Speak)</h2>
           <form onSubmit={handleNaturalSearch} className="flex gap-2">
             <div className="relative flex-1">
               <input 
@@ -242,7 +249,7 @@ export default function Home() {
         {/* AI Briefing Output Interface */}
         <section className="bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-xl space-y-4">
           <div className="flex justify-between items-center border-b border-slate-800 pb-4">
-            <h2 className="text-xl font-semibold text-slate-200">3. Active AI Strategy Briefing</h2>
+            <h2 className="text-xl font-semibold text-slate-200">AI Operations Briefing</h2>
             <button onClick={fetchBriefing} disabled={loadingBriefing} className="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-700 text-white font-medium rounded-md transition-colors text-sm">
               {loadingBriefing ? 'Analyzing Data...' : 'Generate Live Insights'}
             </button>

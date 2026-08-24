@@ -14,6 +14,7 @@ Implemented:
 - Live account status and role validation
 - Tenant-scoped products, batches, and suppliers
 - Validated, idempotent CSV inventory import
+- Searchable inventory dashboard with stock, expiry, and valuation KPIs
 - AI morning briefing through Groq
 - Tenant-validated, read-only natural-language inventory queries
 - Backend unit tests and GitHub Actions CI
@@ -70,7 +71,7 @@ npm run lint -- --max-warnings=0
 npm run build
 ```
 
-Current verified baseline: 27 backend tests pass, ESLint passes with zero warnings, and the Next.js production build succeeds.
+Current verified baseline: 30 backend tests pass, ESLint passes with zero warnings, and the Next.js production build succeeds.
 
 ## Inventory CSV format
 

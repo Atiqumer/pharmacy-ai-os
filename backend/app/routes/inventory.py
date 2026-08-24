@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status, Request
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status, Request, Query
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 import pandas as pd
@@ -14,6 +14,162 @@ router = APIRouter(prefix="/inventory", tags=["Inventory Management"])
 MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 MAX_UPLOAD_ROWS = 5000
 MAX_TEXT_LENGTH = 255
+
+
+@router.get("/summary")
+@limiter.limit("30/minute")
+async def get_inventory_summary(
+    request: Request,
+    user: dict = Depends(get_current_user),
+):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        owner_id = user["user_id"]
+        cursor.execute(
+            """
+            WITH product_stock AS (
+                SELECT p.id, p."minStockLevel", COALESCE(SUM(b.quantity), 0) AS stock
+                FROM "Product" p
+                LEFT JOIN "Batch" b
+                  ON b."productId" = p.id AND b."ownerId" = %s
+                WHERE p."ownerId" = %s
+                GROUP BY p.id, p."minStockLevel"
+            ), batch_metrics AS (
+                SELECT
+                    COALESCE(SUM(quantity), 0) AS total_units,
+                    COALESCE(SUM(quantity * "costPrice"), 0) AS cost_value,
+                    COALESCE(SUM(quantity * "retailPrice"), 0) AS retail_value,
+                    COUNT(*) FILTER (
+                        WHERE "expiryDate" >= CURRENT_DATE
+                          AND "expiryDate" <= CURRENT_DATE + INTERVAL '90 days'
+                    ) AS expiring_batches,
+                    COUNT(*) FILTER (WHERE "expiryDate" < CURRENT_DATE) AS expired_batches
+                FROM "Batch"
+                WHERE "ownerId" = %s
+            )
+            SELECT
+                (SELECT COUNT(*) FROM product_stock) AS total_products,
+                (SELECT COUNT(*) FROM product_stock WHERE stock <= "minStockLevel") AS low_stock_products,
+                total_units,
+                cost_value,
+                retail_value,
+                expiring_batches,
+                expired_batches
+            FROM batch_metrics;
+            """,
+            (owner_id, owner_id, owner_id),
+        )
+        row = cursor.fetchone()
+        return {
+            "total_products": row["total_products"],
+            "total_units": row["total_units"],
+            "low_stock_products": row["low_stock_products"],
+            "expiring_batches": row["expiring_batches"],
+            "expired_batches": row["expired_batches"],
+            "cost_value": float(row["cost_value"]),
+            "retail_value": float(row["retail_value"]),
+            "potential_margin": float(row["retail_value"] - row["cost_value"]),
+        }
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@router.get("/items")
+@limiter.limit("30/minute")
+async def list_inventory_items(
+    request: Request,
+    page: int = Query(1, ge=1),
+    limit: int = Query(25, ge=1, le=100),
+    search: str = Query("", max_length=100),
+    stock_status: str = Query("all", pattern="^(all|low_stock|in_stock)$"),
+    expiry_status: str = Query("all", pattern="^(all|expiring|expired|valid)$"),
+    user: dict = Depends(get_current_user),
+):
+    owner_id = user["user_id"]
+    conditions = []
+    params = [owner_id, owner_id]
+
+    if search.strip():
+        conditions.append(
+            '(name ILIKE %s OR "genericName" ILIKE %s OR category ILIKE %s OR "batchNumber" ILIKE %s)'
+        )
+        term = f"%{search.strip()}%"
+        params.extend([term, term, term, term])
+    if stock_status == "low_stock":
+        conditions.append('total_stock <= "minStockLevel"')
+    elif stock_status == "in_stock":
+        conditions.append('total_stock > "minStockLevel"')
+    if expiry_status == "expiring":
+        conditions.append('"expiryDate" >= CURRENT_DATE AND "expiryDate" <= CURRENT_DATE + INTERVAL \'90 days\'')
+    elif expiry_status == "expired":
+        conditions.append('"expiryDate" < CURRENT_DATE')
+    elif expiry_status == "valid":
+        conditions.append('"expiryDate" > CURRENT_DATE + INTERVAL \'90 days\'')
+
+    where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+    offset = (page - 1) * limit
+    params.extend([limit, offset])
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            f"""
+            WITH inventory AS (
+                SELECT
+                    b.id AS batch_id,
+                    p.id AS product_id,
+                    p.name,
+                    p."genericName",
+                    p.category,
+                    p."minStockLevel",
+                    b."batchNumber",
+                    b.quantity,
+                    b."costPrice",
+                    b."retailPrice",
+                    b."expiryDate",
+                    SUM(b.quantity) OVER (PARTITION BY p.id) AS total_stock
+                FROM "Batch" b
+                JOIN "Product" p ON p.id = b."productId" AND p."ownerId" = %s
+                WHERE b."ownerId" = %s
+            )
+            SELECT *, COUNT(*) OVER() AS total_count
+            FROM inventory
+            {where_clause}
+            ORDER BY "expiryDate" ASC, name ASC
+            LIMIT %s OFFSET %s;
+            """,
+            tuple(params),
+        )
+        rows = cursor.fetchall()
+        total = rows[0]["total_count"] if rows else 0
+        return {
+            "items": [
+                {
+                    "batch_id": str(row["batch_id"]),
+                    "product_id": str(row["product_id"]),
+                    "name": row["name"],
+                    "generic_name": row["genericName"],
+                    "category": row["category"],
+                    "batch_number": row["batchNumber"],
+                    "quantity": row["quantity"],
+                    "total_stock": row["total_stock"],
+                    "min_stock_level": row["minStockLevel"],
+                    "cost_price": float(row["costPrice"]),
+                    "retail_price": float(row["retailPrice"]),
+                    "expiry_date": str(row["expiryDate"]),
+                }
+                for row in rows
+            ],
+            "total": total,
+            "page": page,
+            "limit": limit,
+        }
+    finally:
+        cursor.close()
+        conn.close()
 
 
 def _required_text(value, field_name: str, row_number: int) -> str:

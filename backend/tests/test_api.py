@@ -193,6 +193,104 @@ class TestUploadCSVValidation:
         mock_db.return_value = mock_conn
 
 
+class TestInventoryReporting:
+    @staticmethod
+    def _token():
+        from app.services.auth import create_access_token
+        return create_access_token(
+            "12345678-1234-1234-1234-123456789012",
+            "inventory@test.com",
+        )
+
+    @staticmethod
+    def _mock_auth(mock_db):
+        conn = MagicMock()
+        cursor = MagicMock()
+        cursor.fetchone.return_value = {
+            "id": "12345678-1234-1234-1234-123456789012",
+            "email": "inventory@test.com",
+            "role": "user",
+            "is_active": True,
+        }
+        conn.cursor.return_value = cursor
+        mock_db.return_value = conn
+
+    @patch("app.routes.inventory.get_db_connection")
+    @patch("app.services.auth.get_db_connection")
+    def test_summary_returns_operational_metrics(self, mock_auth_db, mock_inventory_db):
+        self._mock_auth(mock_auth_db)
+        conn = MagicMock()
+        cursor = MagicMock()
+        cursor.fetchone.return_value = {
+            "total_products": 4,
+            "total_units": 120,
+            "low_stock_products": 1,
+            "expiring_batches": 2,
+            "expired_batches": 1,
+            "cost_value": 500.0,
+            "retail_value": 800.0,
+        }
+        conn.cursor.return_value = cursor
+        mock_inventory_db.return_value = conn
+
+        response = client.get(
+            "/inventory/summary",
+            headers={"Authorization": f"Bearer {self._token()}"},
+        )
+        assert response.status_code == 200
+        assert response.json()["potential_margin"] == 300.0
+        assert cursor.execute.call_args.args[1] == (
+            "12345678-1234-1234-1234-123456789012",
+            "12345678-1234-1234-1234-123456789012",
+            "12345678-1234-1234-1234-123456789012",
+        )
+
+    @patch("app.routes.inventory.get_db_connection")
+    @patch("app.services.auth.get_db_connection")
+    def test_list_items_returns_tenant_scoped_batches(self, mock_auth_db, mock_inventory_db):
+        self._mock_auth(mock_auth_db)
+        conn = MagicMock()
+        cursor = MagicMock()
+        cursor.fetchall.return_value = [{
+            "batch_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "product_id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            "name": "Panadol",
+            "genericName": "Paracetamol",
+            "category": "Analgesic",
+            "minStockLevel": 10,
+            "batchNumber": "PAN-1",
+            "quantity": 5,
+            "costPrice": 1.0,
+            "retailPrice": 2.0,
+            "expiryDate": "2027-01-01",
+            "total_stock": 5,
+            "total_count": 1,
+        }]
+        conn.cursor.return_value = cursor
+        mock_inventory_db.return_value = conn
+
+        response = client.get(
+            "/inventory/items?stock_status=low_stock&search=Panadol",
+            headers={"Authorization": f"Bearer {self._token()}"},
+        )
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["total"] == 1
+        assert payload["items"][0]["batch_number"] == "PAN-1"
+        sql, params = cursor.execute.call_args.args
+        assert 'b."ownerId" = %s' in sql
+        assert params[0] == "12345678-1234-1234-1234-123456789012"
+
+    @patch("app.services.auth.get_db_connection")
+    def test_list_items_rejects_invalid_filter(self, mock_auth_db):
+        self._mock_auth(mock_auth_db)
+        response = client.get(
+            "/inventory/items?stock_status=unknown",
+            headers={"Authorization": f"Bearer {self._token()}"},
+        )
+        assert response.status_code == 422
+
+
 class TestAuthSignupValidation:
     def test_rejects_short_password(self):
         response = client.post(
