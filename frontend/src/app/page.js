@@ -273,7 +273,7 @@ export default function Home() {
                 <ReactMarkdown>{briefing}</ReactMarkdown>
               </div>
             ) : (
-              <p className="text-slate-500 italic text-center pt-12">Click &quot;Generate Live Insights&quot; to stream real-time analysis from Llama 3.3.</p>
+              <p className="text-slate-500 italic text-center pt-12">Click &quot;Generate Live Insights&quot; to analyze current pharmacy operations with Groq AI.</p>
             )}
           </div>
         </section>

@@ -3,7 +3,7 @@ import logging
 import sqlparse
 from uuid import UUID
 from app.database import get_db_connection
-from app.services.ai_client import get_groq_client, public_ai_error
+from app.services.ai_client import get_ai_model, get_groq_client, public_ai_error
 
 logger = logging.getLogger("rxos.query")
 
@@ -97,7 +97,7 @@ def execute_natural_query(user_question: str, owner_id: str = None):
 
     try:
         response = get_groq_client().chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model=get_ai_model(),
             messages=[
                 {"role": "system", "content": schema_context},
                 {"role": "user", "content": f"Translate this request to SQL: {user_question}"},

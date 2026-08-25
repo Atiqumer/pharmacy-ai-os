@@ -267,6 +267,12 @@ class TestUploadCSVValidation:
 
 
 class TestAIErrorMessages:
+    def test_default_ai_model_is_a_supported_production_model(self):
+        from app.services.ai_client import get_ai_model
+
+        with patch.dict(os.environ, {}, clear=True):
+            assert get_ai_model() == "llama-3.1-8b-instant"
+
     def test_invalid_key_message_is_actionable_and_sanitized(self):
         from app.services.ai_client import public_ai_error
 

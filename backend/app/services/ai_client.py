@@ -16,6 +16,10 @@ def get_groq_client() -> Groq:
     return Groq(api_key=api_key)
 
 
+def get_ai_model() -> str:
+    return os.getenv("GROQ_MODEL", "llama-3.1-8b-instant").strip() or "llama-3.1-8b-instant"
+
+
 def public_ai_error(exc: Exception) -> str:
     """Return actionable provider guidance without exposing credentials or internals."""
     if isinstance(exc, AIServiceConfigurationError):
