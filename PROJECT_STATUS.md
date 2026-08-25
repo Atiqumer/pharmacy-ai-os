@@ -249,7 +249,7 @@ npm run dev
 | `DATABASE_URL` | Yes | - | PostgreSQL connection string |
 | `GROQ_API_KEY` | Yes | - | Groq API key |
 | `JWT_SECRET` | Yes | dev-secret | JWT signing secret (32+ chars) |
-| `JWT_EXPIRY_HOURS` | No | 24 | Token lifetime |
+| `JWT_EXPIRY_HOURS` | No | 8 | Maximum backend token lifetime; frontend also ends inactive sessions after 30 minutes |
 | `CORS_ORIGINS` | No | http://localhost:3000 | Allowed origins |
 
 ### Frontend

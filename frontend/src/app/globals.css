@@ -40,6 +40,72 @@ body {
   color: #0f172a;
 }
 
+.auth-input {
+  display: block;
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.375rem;
+  background: #ffffff;
+  padding: 0.625rem 0.75rem;
+  color: #0f172a;
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.auth-input:focus {
+  border-color: #18324b;
+  box-shadow: 0 0 0 3px rgba(24, 50, 75, 0.1);
+}
+
+.page-eyebrow {
+  color: #64748b;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.app-content {
+  color: #334155;
+}
+
+.app-shell .app-content .rounded-2xl,
+.app-shell .app-content .rounded-xl {
+  border-radius: 0.5rem;
+}
+
+.app-shell .app-content .shadow-xl,
+.app-shell .app-content [class*="shadow-["] {
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.app-shell .app-content .bg-slate-900 { background-color: #ffffff; }
+.app-shell .app-content .bg-slate-950 { background-color: #f8fafc; }
+.app-shell .app-content .border-slate-800,
+.app-shell .app-content .border-slate-700 { border-color: #e2e8f0; }
+.app-shell .app-content .divide-slate-800 > :not(:last-child) { border-color: #e2e8f0; }
+.app-shell .app-content .text-slate-100,
+.app-shell .app-content .text-slate-200 { color: #0f172a; }
+.app-shell .app-content .text-slate-300 { color: #475569; }
+.app-shell .app-content .text-slate-400 { color: #64748b; }
+.app-shell .app-content .text-cyan-300,
+.app-shell .app-content .text-emerald-300 { color: #1e5278; }
+.app-shell .app-content .text-amber-300 { color: #a16207; }
+.app-shell .app-content .text-red-300 { color: #be123c; }
+.app-shell .app-content .bg-cyan-600,
+.app-shell .app-content .bg-emerald-600,
+.app-shell .app-content .bg-teal-600 { background-color: #18324b; }
+.app-shell .app-content button.bg-slate-800 { background-color: #f1f5f9; color: #475569; }
+.app-shell .app-content .form-input {
+  border-color: #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+}
+.app-shell .app-content .form-input:focus {
+  border-color: #18324b;
+  box-shadow: 0 0 0 3px rgba(24, 50, 75, 0.1);
+}
+
 .inventory-dashboard .form-input:focus {
   border-color: #14b8a6;
   background: #ffffff;

@@ -25,7 +25,7 @@ services:
       DATABASE_URL: postgresql://rxos:${POSTGRES_PASSWORD:-rxos_secret_2024}@db:5432/rxos
       GROQ_API_KEY: ${GROQ_API_KEY}
       JWT_SECRET: ${JWT_SECRET:-change-this-to-a-secure-random-string}
-      JWT_EXPIRY_HOURS: ${JWT_EXPIRY_HOURS:-24}
+      JWT_EXPIRY_HOURS: ${JWT_EXPIRY_HOURS:-8}
       APP_ENV: ${APP_ENV:-production}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       PASSWORD_RESET_DELIVERY: ${PASSWORD_RESET_DELIVERY:-disabled}

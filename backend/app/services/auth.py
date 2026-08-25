@@ -14,7 +14,7 @@ security = HTTPBearer(auto_error=False)
 
 JWT_SECRET = os.getenv("JWT_SECRET", "dev-secret-change-in-production")
 JWT_ALGORITHM = "HS256"
-JWT_EXPIRY_HOURS = int(os.getenv("JWT_EXPIRY_HOURS", "24"))
+JWT_EXPIRY_HOURS = int(os.getenv("JWT_EXPIRY_HOURS", "8"))
 
 if os.getenv("APP_ENV", "development").lower() == "production" and (
     JWT_SECRET == "dev-secret-change-in-production" or len(JWT_SECRET) < 32

@@ -2,11 +2,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import DashboardSidebar from '@/components/DashboardSidebar';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
 export default function AdminPage() {
-  const { user, loading, authFetch, isAdmin } = useAuth();
+  const { user, loading, authFetch, isAdmin, logout } = useAuth();
   const router = useRouter();
 
   const [users, setUsers] = useState([]);
@@ -98,26 +99,28 @@ export default function AdminPage() {
 
   if (loading || !user) {
     return (
-      <main className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <p className="text-slate-400">Loading...</p>
+      <main className="flex min-h-screen items-center justify-center bg-slate-100">
+        <p className="text-sm text-slate-500">Loading…</p>
       </main>
     );
   }
 
   if (!isAdmin) {
     return (
-      <main className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <p className="text-red-400">Access denied. Admin only.</p>
+      <main className="flex min-h-screen items-center justify-center bg-slate-100">
+        <p className="text-sm text-rose-700">Access denied. Admin only.</p>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 p-8">
-      <div className="max-w-5xl mx-auto space-y-8">
-        <header className="border-b border-slate-800 pb-6">
-          <h1 className="text-3xl font-bold text-slate-100">Admin Panel</h1>
-          <p className="text-slate-400 mt-2">Manage users and system settings</p>
+    <DashboardSidebar user={user} isAdmin={isAdmin} onLogout={logout}>
+    <main className="app-content min-h-screen p-4 md:p-8 lg:p-9">
+      <div className="mx-auto max-w-5xl space-y-8">
+        <header className="border-b border-slate-200 pb-6">
+          <p className="page-eyebrow">Administration</p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight">Team & access</h1>
+          <p className="mt-2 text-slate-500">Manage operator roles and account status.</p>
         </header>
 
         <section className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
@@ -201,5 +204,6 @@ export default function AdminPage() {
         </section>
       </div>
     </main>
+    </DashboardSidebar>
   );
 }

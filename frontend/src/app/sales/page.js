@@ -1,16 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { getApiErrorMessage } from '@/lib/apiError';
+import DashboardSidebar from '@/components/DashboardSidebar';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 const money = new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 2 });
 
 export default function SalesPage() {
-  const { user, loading: authLoading, authFetch } = useAuth();
+  const { user, loading: authLoading, authFetch, logout, isAdmin } = useAuth();
   const router = useRouter();
   const [inventory, setInventory] = useState([]);
   const [sales, setSales] = useState([]);
@@ -173,13 +173,14 @@ export default function SalesPage() {
     }
   };
 
-  if (authLoading || !user) return <main className="min-h-screen bg-slate-950 grid place-items-center text-slate-400">Loading…</main>;
+  if (authLoading || !user) return <main className="grid min-h-screen place-items-center bg-slate-100 text-sm text-slate-500">Loading…</main>;
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-7">
+    <DashboardSidebar user={user} isAdmin={isAdmin} onLogout={logout}>
+    <main className="app-content min-h-screen p-4 md:p-8 lg:p-9">
+      <div className="mx-auto max-w-7xl space-y-7">
         <header className="flex flex-col sm:flex-row justify-between gap-4 border-b border-slate-800 pb-5">
-          <div><Link href="/" className="text-sm text-cyan-300">← Inventory dashboard</Link><h1 className="text-3xl font-bold mt-2">Sales</h1><p className="text-slate-400 mt-1">Fast pilot checkout with FEFO batch allocation and auditable returns.</p></div>
+          <div><p className="page-eyebrow">Daily operations</p><h1 className="mt-1 text-3xl font-semibold tracking-tight">Sales</h1><p className="mt-1 text-slate-500">Checkout with FEFO batch allocation and auditable returns.</p></div>
           <div className="flex gap-2 items-end"><button onClick={() => downloadReport('/reports/inventory.csv', 'inventory.csv')} className="px-3 py-2 bg-slate-800 rounded-md text-sm">Export inventory</button><button onClick={() => downloadReport('/reports/sales.csv', 'sales.csv')} className="px-3 py-2 bg-slate-800 rounded-md text-sm">Export sales</button></div>
         </header>
 
@@ -215,6 +216,7 @@ export default function SalesPage() {
 
       {selectedSale && <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm grid place-items-center p-4"><div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-slate-900 border border-slate-700 rounded-xl p-6"><div className="flex justify-between mb-5"><div><h2 className="text-xl font-semibold">{selectedSale.sale_number}</h2><p className="text-sm text-slate-400">Return sold items to their original batches.</p></div><button onClick={() => setSelectedSale(null)} className="text-slate-400">Close</button></div><form onSubmit={returnItems} className="space-y-4">{selectedSale.items.map((item) => { const remaining = item.quantity - item.returned_quantity; return <div key={item.id} className="grid sm:grid-cols-[1fr_130px] gap-3 border border-slate-800 rounded-lg p-3"><div><p className="font-medium">{item.product_name}</p><p className="text-xs text-slate-500">Batch {item.batch_number} · Sold {item.quantity} · Returned {item.returned_quantity}</p></div><label className="text-xs text-slate-400">Return quantity<input name={`quantity_${item.id}`} type="number" min="0" max={remaining} defaultValue="0" disabled={!remaining} className="form-input" /></label></div>; })}<label className="block text-sm text-slate-400">Return reason<textarea required name="reason" maxLength="500" className="form-input" /></label><div className="flex justify-end gap-2"><button type="button" onClick={() => setSelectedSale(null)} className="px-4 py-2 bg-slate-800 rounded-md">Cancel</button><button disabled={actionLoading || selectedSale.status === 'refunded'} className="px-4 py-2 bg-amber-600 rounded-md disabled:opacity-40">Complete return</button></div></form></div></div>}
     </main>
+    </DashboardSidebar>
   );
 }
 

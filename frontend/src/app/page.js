@@ -145,21 +145,19 @@ export default function Home() {
 
   return (
     <DashboardSidebar user={user} isAdmin={isAdmin} onLogout={logout}>
-      <main className="px-4 py-7 md:px-8 lg:px-10 lg:py-9">
+      <main className="app-content px-4 py-7 md:px-8 lg:px-9">
         <div className="mx-auto max-w-[1500px] space-y-8">
           <section className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
             <div>
-              <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-teal-600">
-                <span className="h-px w-7 bg-teal-500" /> Live operations
-              </div>
-              <h1 className="text-3xl font-extrabold tracking-tight text-slate-950 md:text-[2.15rem]">Dashboard overview</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Monitor stock health, prevent expiry loss, and move quickly between daily pharmacy tasks.</p>
+              <p className="page-eyebrow">Overview</p>
+              <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">Dashboard</h1>
+              <p className="mt-2 max-w-2xl text-sm text-slate-500">Current inventory position and items that need attention.</p>
             </div>
             <div className="flex flex-wrap gap-2.5">
-              <Link href="/purchasing" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50">
+              <Link href="/purchasing" className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
                 <AppIcon name="purchasing" className="h-4 w-4" /> Purchase order
               </Link>
-              <Link href="/sales" className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-teal-200 transition hover:bg-teal-700">
+              <Link href="/sales" className="inline-flex items-center gap-2 rounded-md bg-[#18324b] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#10263a]">
                 <AppIcon name="plus" className="h-4 w-4" /> New sale
               </Link>
             </div>

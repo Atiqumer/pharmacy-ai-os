@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getApiErrorMessage } from '@/lib/apiError';
+import AuthLayout from '@/components/AuthLayout';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
@@ -71,23 +72,14 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-950 flex items-center justify-center p-8">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-            RxOS
-          </h1>
-          <p className="text-slate-400 mt-2">Reset your password</p>
-        </div>
-
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
+    <AuthLayout title="Reset password" description="Request a secure reset link for your pharmacy account.">
           {error && (
-            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-md text-red-400 text-sm">
+            <div role="alert" className="mb-4 border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
               {error}
             </div>
           )}
           {message && (
-            <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-md text-emerald-400 text-sm">
+            <div className="mb-4 border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
               {message}
             </div>
           )}
@@ -95,20 +87,21 @@ export default function ForgotPasswordPage() {
           {step === 1 && (
             <form onSubmit={handleRequestReset} className="space-y-4">
               <div>
-                <label className="block text-sm text-slate-400 mb-1">Email</label>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">Email address</label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full bg-slate-950 border border-slate-800 rounded-md py-2 px-4 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                  className="auth-input"
+                  autoComplete="email"
                   placeholder="you@pharmacy.com"
                 />
               </div>
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 text-white font-medium rounded-md transition-colors"
+                className="w-full rounded-md bg-[#18324b] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#10263a] disabled:opacity-50"
               >
                 {loading ? 'Sending...' : 'Send Reset Link'}
               </button>
@@ -118,32 +111,33 @@ export default function ForgotPasswordPage() {
           {step === 2 && (
             <form onSubmit={handleResetPassword} className="space-y-4">
               <div>
-                <label className="block text-sm text-slate-400 mb-1">Reset Token</label>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">Reset token</label>
                 <input
                   type="text"
                   value={resetToken}
                   onChange={(e) => setResetToken(e.target.value)}
                   required
-                  className="w-full bg-slate-950 border border-slate-800 rounded-md py-2 px-4 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                  className="auth-input"
                   placeholder="Paste your reset token"
                 />
               </div>
               <div>
-                <label className="block text-sm text-slate-400 mb-1">New Password</label>
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">New password</label>
                 <input
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   required
                   minLength={8}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-md py-2 px-4 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                  className="auth-input"
+                  autoComplete="new-password"
                   placeholder="Min 8 characters"
                 />
               </div>
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 text-white font-medium rounded-md transition-colors"
+                className="w-full rounded-md bg-[#18324b] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#10263a] disabled:opacity-50"
               >
                 {loading ? 'Resetting...' : 'Reset Password'}
               </button>
@@ -152,25 +146,23 @@ export default function ForgotPasswordPage() {
 
           {step === 3 && (
             <div className="text-center">
-              <Link href="/login" className="text-cyan-400 hover:text-cyan-300">
+              <Link href="/login" className="font-medium text-[#18324b] hover:underline">
                 Go to Sign In
               </Link>
             </div>
           )}
 
           {step === 4 && (
-            <p className="text-center text-sm text-slate-400">
+            <p className="text-center text-sm text-slate-500">
               Check your email for a secure reset link. You can close this page.
             </p>
           )}
 
-          <div className="mt-4 text-center">
-            <Link href="/login" className="text-sm text-slate-400 hover:text-slate-300">
+          <div className="mt-6 border-t border-slate-200 pt-5 text-center">
+            <Link href="/login" className="text-sm font-medium text-[#18324b] hover:underline">
               Back to Sign In
             </Link>
           </div>
-        </div>
-      </div>
-    </main>
+    </AuthLayout>
   );
 }

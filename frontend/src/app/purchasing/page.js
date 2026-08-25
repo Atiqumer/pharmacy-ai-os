@@ -1,16 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { getApiErrorMessage } from '@/lib/apiError';
+import DashboardSidebar from '@/components/DashboardSidebar';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 const money = new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 });
 
 export default function PurchasingPage() {
-  const { user, loading: authLoading, authFetch } = useAuth();
+  const { user, loading: authLoading, authFetch, logout, isAdmin } = useAuth();
   const router = useRouter();
   const [suppliers, setSuppliers] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -197,13 +197,14 @@ export default function PurchasingPage() {
     } catch (err) { setError(err.message); } finally { setActionLoading(false); }
   };
 
-  if (authLoading || !user) return <main className="min-h-screen bg-slate-950 grid place-items-center text-slate-400">Loading…</main>;
+  if (authLoading || !user) return <main className="grid min-h-screen place-items-center bg-slate-100 text-sm text-slate-500">Loading…</main>;
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8">
+    <DashboardSidebar user={user} isAdmin={isAdmin} onLogout={logout}>
+    <main className="app-content min-h-screen p-4 md:p-8 lg:p-9">
       <div className="max-w-7xl mx-auto space-y-7">
         <header className="flex flex-col sm:flex-row justify-between gap-4 border-b border-slate-800 pb-5">
-          <div><Link href="/" className="text-sm text-cyan-300">← Inventory dashboard</Link><h1 className="text-3xl font-bold mt-2">Purchasing</h1><p className="text-slate-400 mt-1">Suppliers, purchase orders, and goods receiving.</p></div>
+          <div><p className="page-eyebrow">Supply management</p><h1 className="mt-1 text-3xl font-semibold tracking-tight">Purchasing</h1><p className="mt-1 text-slate-500">Suppliers, purchase orders, and goods receiving.</p></div>
           <div className="flex gap-2 items-end"><button onClick={() => setShowSupplierForm(true)} className="px-4 py-2 bg-slate-800 rounded-md text-sm">Add supplier</button><button onClick={() => { setEditingOrder(null); setOrderLines([{ product_id: '', quantity: 1, cost_price: '' }]); setShowOrderForm(true); }} disabled={!suppliers.length || !products.length} className="px-4 py-2 bg-emerald-600 rounded-md text-sm font-medium disabled:opacity-40">New purchase order</button></div>
         </header>
 
@@ -237,6 +238,7 @@ export default function PurchasingPage() {
 
       {receiptOrder && <Modal title={`Receive ${receiptOrder.order_number}`} onClose={() => setReceiptOrder(null)} wide><form onSubmit={receiveOrder} className="space-y-5"><label className="block text-sm text-slate-400">Supplier invoice/reference<input name="reference" className="form-input" /></label><div className="space-y-4">{receiptOrder.items.filter((item) => item.received_quantity < item.ordered_quantity).map((item) => { const remaining = item.ordered_quantity - item.received_quantity; return <div key={item.id} className="border border-slate-800 rounded-lg p-3"><p className="font-medium">{item.product_name} <span className="text-xs text-slate-500">({remaining} remaining)</span></p><div className="grid sm:grid-cols-4 gap-2 mt-2"><label className="text-xs text-slate-400">Receive qty<input required type="number" min="1" max={remaining} defaultValue={remaining} name={`quantity_${item.id}`} className="form-input" /></label><label className="text-xs text-slate-400">Batch number<input required name={`batch_${item.id}`} className="form-input" /></label><label className="text-xs text-slate-400">Expiry<input required type="date" name={`expiry_${item.id}`} className="form-input" /></label><label className="text-xs text-slate-400">Retail price<input required type="number" min="0" step="0.01" name={`retail_${item.id}`} className="form-input" /></label></div></div>; })}</div><label className="block text-sm text-slate-400">Receiving notes<textarea name="notes" className="form-input" /></label><SubmitButtons loading={actionLoading} onCancel={() => setReceiptOrder(null)} label="Post goods receipt" /></form></Modal>}
     </main>
+    </DashboardSidebar>
   );
 }
 
