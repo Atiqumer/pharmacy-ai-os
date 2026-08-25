@@ -17,7 +17,7 @@ def get_groq_client() -> Groq:
 
 
 def get_ai_model() -> str:
-    return os.getenv("GROQ_MODEL", "llama-3.1-8b-instant").strip() or "llama-3.1-8b-instant"
+    return os.getenv("GROQ_MODEL", "openai/gpt-oss-20b").strip() or "openai/gpt-oss-20b"
 
 
 def public_ai_error(exc: Exception) -> str:

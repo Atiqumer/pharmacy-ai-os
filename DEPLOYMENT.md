@@ -99,7 +99,7 @@ In **Project Settings > Environment Variables**, add the following for Productio
 APP_ENV=production
 DATABASE_URL=PASTE_THE_TRANSACTION_POOLER_6543_URL_HERE
 GROQ_API_KEY=PASTE_YOUR_GROQ_KEY_HERE
-GROQ_MODEL=llama-3.1-8b-instant
+GROQ_MODEL=openai/gpt-oss-20b
 JWT_SECRET=PASTE_A_RANDOM_SECRET_OF_AT_LEAST_32_BYTES_HERE
 JWT_EXPIRY_HOURS=24
 CORS_ORIGINS=https://temporary.invalid
@@ -238,7 +238,7 @@ Groq keys do not belong in GitHub, Netlify, or frontend variables. If either AI 
 
 Never paste the key into a support message, Vercel build log, source file, or any variable beginning with `NEXT_PUBLIC_`. If the UI reports a quota/rate-limit or model-availability error instead, inspect **Vercel > Backend project > Logs** and the Groq console; rotating a valid key will not solve those cases.
 
-`GROQ_MODEL` is optional because the backend defaults to `llama-3.1-8b-instant`. Keeping it in Vercel makes future model changes possible without changing source code. Use a model listed under **Production Models** in Groq's current documentation; preview model IDs can disappear without notice.
+`GROQ_MODEL` is optional because the backend defaults to `openai/gpt-oss-20b`, a production model available on Groq's Developer plan. Keeping it in Vercel makes future model changes possible without changing source code. Do not select a model marked **Enterprise** for a free Groq project, and avoid preview model IDs because they can disappear without notice.
 
 ## 8. Optional SMTP password-reset email
 
