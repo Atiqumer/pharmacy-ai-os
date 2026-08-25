@@ -1,14 +1,11 @@
-import os
 import re
 import logging
 import sqlparse
 from uuid import UUID
-from groq import Groq
 from app.database import get_db_connection
+from app.services.ai_client import get_groq_client, public_ai_error
 
 logger = logging.getLogger("rxos.query")
-
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 ALLOWED_TABLES = {"Product", "Batch", "Supplier"}
 
@@ -99,7 +96,7 @@ def execute_natural_query(user_question: str, owner_id: str = None):
         schema_context = schema_context.replace("Always filter by \"ownerId\" = '{owner_id}' in every FROM/JOIN clause to scope results to the current user.", "")
 
     try:
-        response = client.chat.completions.create(
+        response = get_groq_client().chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "system", "content": schema_context},
@@ -133,5 +130,5 @@ def execute_natural_query(user_question: str, owner_id: str = None):
         logger.warning(f"Query rejected: {e}")
         return {"status": "error", "detail": f"Query rejected: {str(e)}"}
     except Exception as e:
-        logger.error(f"Query execution failed: {e}")
-        return {"status": "error", "detail": str(e)}
+        logger.exception("Query execution failed")
+        return {"status": "error", "detail": public_ai_error(e)}

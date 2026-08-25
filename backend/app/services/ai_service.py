@@ -1,12 +1,8 @@
-import os
 import logging
-from groq import Groq
 from app.database import get_db_connection
+from app.services.ai_client import get_groq_client, public_ai_error
 
 logger = logging.getLogger("rxos.ai")
-
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-
 
 def generate_morning_briefing(owner_id: str = None):
     conn = get_db_connection()
@@ -48,7 +44,7 @@ def generate_morning_briefing(owner_id: str = None):
         Items Expiring Soon (90 Days): {[{'name': item['name'], 'batch': item['batchNumber'], 'expiry': str(item['expiryDate']), 'qty': item['quantity']} for item in expiring_items]}
         """
 
-        response = client.chat.completions.create(
+        response = get_groq_client().chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
                 {
@@ -72,9 +68,9 @@ def generate_morning_briefing(owner_id: str = None):
         return {"status": "success", "briefing": response.choices[0].message.content}
 
     except Exception as e:
-        logger.error(f"Morning briefing failed: {e}")
+        logger.exception("Morning briefing failed")
         if "cursor" in locals() and not cursor.closed:
             cursor.close()
         if "conn" in locals() and conn:
             conn.close()
-        return {"status": "error", "detail": str(e)}
+        return {"status": "error", "detail": public_ai_error(e)}

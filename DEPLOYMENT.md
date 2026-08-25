@@ -223,6 +223,20 @@ Also recheck:
 https://YOUR-BACKEND.vercel.app/health/ready
 ```
 
+### Replace an expired or invalid Groq key
+
+Groq keys do not belong in GitHub, Netlify, or frontend variables. If either AI feature reports an authentication failure:
+
+1. Open the Groq console and create a new API key.
+2. Open the **backend** project in Vercel.
+3. Go to **Settings > Environment Variables** and edit `GROQ_API_KEY` for Production.
+4. Paste the new key without quotes or spaces and save it.
+5. Redeploy the backend so the running function receives the new value.
+6. Delete or revoke the old key in Groq after the new deployment works.
+7. Test both **Conversational Database Explorer** and **AI Operations Briefing** again.
+
+Never paste the key into a support message, Vercel build log, source file, or any variable beginning with `NEXT_PUBLIC_`. If the UI reports a quota/rate-limit or model-availability error instead, inspect **Vercel > Backend project > Logs** and the Groq console; rotating a valid key will not solve those cases.
+
 ## 8. Optional SMTP password-reset email
 
 Leave `PASSWORD_RESET_DELIVERY=disabled` until a real SMTP provider and sender address are ready. Then add these Vercel variables:

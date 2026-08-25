@@ -109,10 +109,10 @@ class TestJWTAuth:
         )
         assert response.status_code == 401
 
-    @patch("app.services.ai_service.client.chat.completions.create")
+    @patch("app.services.ai_service.get_groq_client")
     @patch("app.services.ai_service.get_db_connection")
     @patch("app.services.auth.get_db_connection")
-    def test_protected_endpoint_with_valid_token(self, mock_auth_db, mock_ai_db, mock_groq):
+    def test_protected_endpoint_with_valid_token(self, mock_auth_db, mock_ai_db, mock_groq_client):
         auth_conn = MagicMock()
         auth_cursor = MagicMock()
         auth_cursor.fetchone.return_value = {
@@ -131,7 +131,9 @@ class TestJWTAuth:
         mock_cursor.closed = False
         mock_conn.cursor.return_value = mock_cursor
         mock_ai_db.return_value = mock_conn
-        mock_groq.return_value.choices = [MagicMock(message=MagicMock(content="All clear"))]
+        mock_groq_client.return_value.chat.completions.create.return_value.choices = [
+            MagicMock(message=MagicMock(content="All clear"))
+        ]
 
         token = self._get_test_token()
         response = client.get(
@@ -180,6 +182,76 @@ class TestUploadCSVValidation:
         )
         assert response.status_code == 400
 
+    @patch("app.routes.inventory.get_db_connection")
+    @patch("app.services.auth.get_db_connection")
+    def test_import_records_opening_stock_movement(self, mock_auth_db, mock_inventory_db):
+        self._mock_active_user(mock_auth_db)
+        conn = MagicMock()
+        cursor = MagicMock()
+        cursor.fetchone.side_effect = [
+            {"id": "cccccccc-cccc-cccc-cccc-cccccccccccc"},
+            {"id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"},
+            None,
+            {"id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"},
+        ]
+        conn.cursor.return_value = cursor
+        mock_inventory_db.return_value = conn
+        csv_content = (
+            "product_name,generic_name,category,batch_number,quantity,cost_price,retail_price,expiry_date\n"
+            "Panadol,Paracetamol,Analgesic,PAN-CSV,7,10,15,2027-12-01\n"
+        )
+
+        response = client.post(
+            "/inventory/upload-csv",
+            headers={"Authorization": f"Bearer {self._get_test_token()}"},
+            files={"file": ("opening-stock.csv", io.BytesIO(csv_content.encode()), "text/csv")},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["movements_recorded"] == 1
+        movement_calls = [
+            call for call in cursor.execute.call_args_list
+            if 'INSERT INTO "StockMovement"' in call.args[0]
+        ]
+        assert len(movement_calls) == 1
+        movement_params = movement_calls[0].args[1]
+        assert movement_params[4:8] == (7, 0, 7, "opening")
+        assert movement_params[8] == "CSV import from opening-stock.csv"
+        conn.commit.assert_called_once()
+
+    @patch("app.routes.inventory.get_db_connection")
+    @patch("app.services.auth.get_db_connection")
+    def test_import_records_only_existing_batch_quantity_delta(self, mock_auth_db, mock_inventory_db):
+        self._mock_active_user(mock_auth_db)
+        conn = MagicMock()
+        cursor = MagicMock()
+        batch_id = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        cursor.fetchone.side_effect = [
+            {"id": "cccccccc-cccc-cccc-cccc-cccccccccccc"},
+            {"id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"},
+            {"id": batch_id, "quantity": 10},
+            {"id": batch_id},
+        ]
+        conn.cursor.return_value = cursor
+        mock_inventory_db.return_value = conn
+        csv_content = (
+            "product_name,generic_name,category,batch_number,quantity,cost_price,retail_price,expiry_date\n"
+            "Panadol,Paracetamol,Analgesic,PAN-CSV,7,10,15,2027-12-01\n"
+        )
+
+        response = client.post(
+            "/inventory/upload-csv",
+            headers={"Authorization": f"Bearer {self._get_test_token()}"},
+            files={"file": ("stock-count.csv", io.BytesIO(csv_content.encode()), "text/csv")},
+        )
+
+        assert response.status_code == 200
+        movement_call = next(
+            call for call in cursor.execute.call_args_list
+            if 'INSERT INTO "StockMovement"' in call.args[0]
+        )
+        assert movement_call.args[1][4:8] == (-3, 10, 7, "correction")
+
     @staticmethod
     def _mock_active_user(mock_db):
         mock_conn = MagicMock()
@@ -192,6 +264,18 @@ class TestUploadCSVValidation:
         }
         mock_conn.cursor.return_value = mock_cursor
         mock_db.return_value = mock_conn
+
+
+class TestAIErrorMessages:
+    def test_invalid_key_message_is_actionable_and_sanitized(self):
+        from app.services.ai_client import public_ai_error
+
+        error = RuntimeError("Invalid API key gsk_do-not-expose")
+        error.status_code = 401
+        message = public_ai_error(error)
+
+        assert "Replace GROQ_API_KEY" in message
+        assert "gsk_do-not-expose" not in message
 
 
 class TestInventoryReporting:

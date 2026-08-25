@@ -509,6 +509,8 @@ async def upload_inventory_csv(
         cursor = conn.cursor()
         owner_id = user["user_id"]
         records_imported = 0
+        movements_recorded = 0
+        import_name = file.filename.replace("\\", "/").rsplit("/", 1)[-1][:200]
 
         cursor.execute(
             """INSERT INTO "Supplier" (id, name, "ownerId")
@@ -533,6 +535,16 @@ async def upload_inventory_csv(
             product_id = cursor.fetchone()["id"]
 
             cursor.execute(
+                """SELECT id, quantity
+                   FROM "Batch"
+                   WHERE "ownerId" = %s AND "productId" = %s AND "batchNumber" = %s
+                   FOR UPDATE;""",
+                (owner_id, product_id, row["batch_number"]),
+            )
+            existing_batch = cursor.fetchone()
+            quantity_before = existing_batch["quantity"] if existing_batch else 0
+
+            cursor.execute(
                 """INSERT INTO "Batch" (id, "batchNumber", "productId", "supplierId", quantity, "costPrice", "retailPrice", "expiryDate", "ownerId")
                    VALUES (gen_random_uuid(), %s, %s, %s, %s, %s, %s, %s, %s)
                    ON CONFLICT ("ownerId", "productId", "batchNumber") DO UPDATE SET
@@ -540,14 +552,35 @@ async def upload_inventory_csv(
                      quantity = EXCLUDED.quantity,
                      "costPrice" = EXCLUDED."costPrice",
                      "retailPrice" = EXCLUDED."retailPrice",
-                     "expiryDate" = EXCLUDED."expiryDate";""",
+                     "expiryDate" = EXCLUDED."expiryDate"
+                   RETURNING id;""",
                 (row["batch_number"], product_id, supplier_id, row["quantity"],
                  row["cost_price"], row["retail_price"], row["expiry_date"], owner_id),
             )
+            batch_id = cursor.fetchone()["id"]
+            quantity_change = row["quantity"] - quantity_before
+            if quantity_change:
+                cursor.execute(
+                    """INSERT INTO "StockMovement" (
+                           id, "batchId", "productId", "ownerId", "createdBy",
+                           "quantityChange", "quantityBefore", "quantityAfter", reason, note
+                       ) VALUES (gen_random_uuid(), %s, %s, %s, %s, %s, %s, %s, %s, %s);""",
+                    (
+                        batch_id, product_id, owner_id, owner_id, quantity_change,
+                        quantity_before, row["quantity"],
+                        "correction" if existing_batch else "opening",
+                        f"CSV import from {import_name}",
+                    ),
+                )
+                movements_recorded += 1
             records_imported += 1
 
         conn.commit()
-        return {"status": "success", "message": f"Successfully processed and stored {records_imported} batch items."}
+        return {
+            "status": "success",
+            "message": f"Successfully processed and stored {records_imported} batch items.",
+            "movements_recorded": movements_recorded,
+        }
 
     except HTTPException:
         raise

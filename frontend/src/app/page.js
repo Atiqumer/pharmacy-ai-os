@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import InventoryDashboard from '@/components/InventoryDashboard';
+import { getApiErrorMessage } from '@/lib/apiError';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
@@ -22,6 +23,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState(null);
+  const [searchError, setSearchError] = useState('');
   const [isListening, setIsListening] = useState(false);
   const speechRecognition = useRef(null);
 
@@ -81,7 +83,7 @@ export default function Home() {
         setStatusMessage('Inventory CSV successfully imported!');
         setInventoryRefreshKey((key) => key + 1);
       }
-      else setStatusMessage(`Error: ${data.detail || 'Upload failed'}`);
+      else setStatusMessage(`Error: ${getApiErrorMessage(data, 'Upload failed')}`);
     } catch (err) {
       setStatusMessage('Network error connecting to backend.');
     } finally {
@@ -96,7 +98,7 @@ export default function Home() {
       const res = await authFetch(`${API_URL}/analytics/morning-briefing`);
       const data = await res.json();
       if (res.ok) setBriefing(data.briefing);
-      else setBriefing('Failed to retrieve AI data metrics.');
+      else setBriefing(getApiErrorMessage(data, 'Failed to retrieve AI data metrics.'));
     } catch (err) {
       setBriefing('Network error retrieving data.');
     } finally {
@@ -109,6 +111,7 @@ export default function Home() {
     if (!searchQuery || !searchQuery.trim()) return;
     setSearching(true);
     setSearchResults(null);
+    setSearchError('');
 
     try {
       const res = await authFetch(`${API_URL}/query/ask?q=${encodeURIComponent(searchQuery)}`);
@@ -116,10 +119,10 @@ export default function Home() {
       if (res.ok) {
         setSearchResults(data);
       } else {
-        alert(data.detail || 'Query extraction error.');
+        setSearchError(getApiErrorMessage(data, 'Query extraction error.'));
       }
     } catch (err) {
-      alert('Network error querying AI engine.');
+      setSearchError('Network error querying AI engine.');
     } finally {
       setSearching(false);
     }
@@ -214,6 +217,12 @@ export default function Home() {
               {searching ? 'Querying...' : 'Ask'}
             </button>
           </form>
+
+          {searchError && (
+            <div role="alert" className="rounded-md border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+              {searchError}
+            </div>
+          )}
 
           {/* Results Render Box */}
           {searchResults && (
