@@ -18,6 +18,12 @@ body {
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+/* Netlify may inject its public project drawer after the built HTML. The
+   pharmacy application does not use that interface or any other iframe. */
+#nl-badge-frame {
+  display: none !important;
+}
+
 @utility form-input {
   display: block;
   width: 100%;
