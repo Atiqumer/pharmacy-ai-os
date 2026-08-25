@@ -42,8 +42,8 @@ export default function DashboardSidebar({ user, isAdmin, onLogout, children }) 
   };
 
   return (
-    <div className="app-shell min-h-screen bg-[#f4f6f8] text-slate-900">
-      <aside className={`saas-sidebar fixed inset-y-0 left-0 z-40 hidden flex-col border-r border-slate-200/90 bg-white transition-[width] duration-200 ease-out lg:flex ${collapsed ? 'w-[76px]' : 'w-[248px]'}`}>
+    <div className="app-shell min-h-screen text-slate-900">
+      <aside className={`saas-sidebar fixed inset-y-0 left-0 z-40 hidden flex-col border-r border-white/70 transition-[width] duration-200 ease-out lg:flex ${collapsed ? 'w-[76px]' : 'w-[248px]'}`}>
         <Brand collapsed={collapsed} />
         <SidebarNavigation pathname={pathname} isAdmin={isAdmin} collapsed={collapsed} />
 
@@ -83,7 +83,7 @@ export default function DashboardSidebar({ user, isAdmin, onLogout, children }) 
       {mobileOpen && (
         <button type="button" aria-label="Close navigation" className="fixed inset-0 z-40 bg-slate-950/35 backdrop-blur-[2px] lg:hidden" onClick={() => setMobileOpen(false)} />
       )}
-      <aside className={`fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col bg-white shadow-2xl transition-transform duration-200 lg:hidden ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`glass-drawer fixed inset-y-0 left-0 z-50 flex w-[280px] flex-col shadow-2xl transition-transform duration-200 lg:hidden ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex items-center justify-between border-b border-slate-200 pr-3">
           <Brand />
           <button type="button" aria-label="Close navigation" onClick={() => setMobileOpen(false)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><AppIcon name="close" /></button>
@@ -102,7 +102,7 @@ export default function DashboardSidebar({ user, isAdmin, onLogout, children }) 
       </aside>
 
       <div className={`min-w-0 transition-[padding] duration-200 ease-out ${collapsed ? 'lg:pl-[76px]' : 'lg:pl-[248px]'}`}>
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200/90 bg-white/95 px-4 backdrop-blur md:px-7">
+        <header className="saas-topbar sticky top-0 z-30 flex h-16 items-center justify-between border-b border-white/70 px-4 md:px-7">
           <div className="flex min-w-0 items-center gap-3">
             <button type="button" aria-label="Open navigation" onClick={() => setMobileOpen(true)} className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50 lg:hidden"><AppIcon name="menu" className="h-[18px] w-[18px]" /></button>
             <div className="min-w-0">

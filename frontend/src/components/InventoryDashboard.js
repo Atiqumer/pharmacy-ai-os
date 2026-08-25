@@ -244,7 +244,7 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
 
       {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
 
-      <div className="grid overflow-hidden rounded-lg border border-slate-200 bg-white sm:grid-cols-2 xl:grid-cols-4">
+      <div className="glass-panel grid overflow-hidden rounded-lg border border-white/80 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => (
           <div key={card.label} className="border-b border-slate-200 p-5 last:border-b-0 sm:[&:nth-child(odd)]:border-r xl:border-b-0 xl:border-r xl:last:border-r-0">
             <div className="flex items-center justify-between gap-3">
@@ -257,7 +257,7 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
         ))}
       </div>
 
-      {summary && <div className="grid gap-px overflow-hidden rounded-lg border border-slate-200 bg-slate-200 sm:grid-cols-3">
+      {summary && <div className="glass-panel grid gap-px overflow-hidden rounded-lg border border-white/80 bg-slate-200/70 sm:grid-cols-3">
         <ValueStat label="Inventory cost" value={money.format(summary.cost_value)} />
         <ValueStat label="Potential sales" value={money.format(summary.retail_value)} />
         <ValueStat label="Potential margin" value={money.format(summary.potential_margin)} accent />
@@ -492,5 +492,5 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
 }
 
 function ValueStat({ label, value, accent = false }) {
-  return <div className="bg-white px-5 py-4"><p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">{label}</p><p className={`mt-1 text-lg font-semibold ${accent ? 'text-[#18324b]' : 'text-slate-800'}`}>{value}</p></div>;
+  return <div className="bg-white/65 px-5 py-4"><p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400">{label}</p><p className={`mt-1 text-lg font-semibold ${accent ? 'text-[#18324b]' : 'text-slate-800'}`}>{value}</p></div>;
 }

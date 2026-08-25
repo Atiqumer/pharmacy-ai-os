@@ -2,7 +2,7 @@ import AppIcon from './AppIcon';
 
 export default function AuthLayout({ title, description, children }) {
   return (
-    <main className="min-h-screen bg-slate-100 text-slate-900 lg:grid lg:grid-cols-[minmax(320px,0.8fr)_1.2fr]">
+    <main className="auth-shell min-h-screen text-slate-900 lg:grid lg:grid-cols-[minmax(320px,0.8fr)_1.2fr]">
       <section className="hidden bg-[#18324b] p-12 text-white lg:flex lg:flex-col lg:justify-between">
         <Brand inverse />
         <div className="max-w-md">
@@ -19,7 +19,7 @@ export default function AuthLayout({ title, description, children }) {
       <section className="flex min-h-screen items-center justify-center p-5 sm:p-10">
         <div className="w-full max-w-[420px]">
           <div className="mb-8 lg:hidden"><Brand /></div>
-          <div className="border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+          <div className="glass-auth-card border border-white/80 p-6 sm:p-8">
             <h1 className="text-2xl font-semibold tracking-tight text-slate-950">{title}</h1>
             <p className="mt-2 text-sm leading-6 text-slate-500">{description}</p>
             <div className="mt-7">{children}</div>

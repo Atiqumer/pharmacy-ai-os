@@ -165,7 +165,7 @@ export default function Home() {
           <InventoryDashboard authFetch={authFetch} refreshKey={inventoryRefreshKey} />
 
           <div className="grid gap-5 xl:grid-cols-[1.45fr_0.8fr]">
-            <section className="rounded-lg border border-slate-200 bg-white">
+            <section className="glass-panel rounded-lg border border-white/80">
               <div className="border-b border-slate-200 px-5 py-4">
                 <h2 className="text-sm font-semibold text-slate-900">Inventory assistant</h2><p className="mt-0.5 text-xs text-slate-500">Search your stock using plain language.</p>
               </div>
@@ -187,7 +187,7 @@ export default function Home() {
               )}
             </section>
 
-            <section className="rounded-lg border border-slate-200 bg-white">
+            <section className="glass-panel rounded-lg border border-white/80">
               <div className="border-b border-slate-200 px-5 py-4">
                 <h2 className="text-sm font-semibold text-slate-900">Import inventory</h2><p className="mt-0.5 text-xs text-slate-500">Add stock from a prepared CSV file.</p>
               </div>
@@ -199,7 +199,7 @@ export default function Home() {
             </section>
           </div>
 
-          <section className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+          <section className="glass-panel overflow-hidden rounded-lg border border-white/80">
             <div className="flex flex-col justify-between gap-4 border-b border-slate-200 p-5 sm:flex-row sm:items-center md:px-6">
               <div><h2 className="text-sm font-semibold text-slate-900">Operations briefing</h2><p className="mt-0.5 text-xs text-slate-500">Generate a concise review of stock and expiry priorities.</p></div>
               <button onClick={fetchBriefing} disabled={loadingBriefing} className="rounded-lg bg-[#18324b] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#10263a] disabled:opacity-50">{loadingBriefing ? 'Analyzing…' : 'Generate briefing'}</button>
