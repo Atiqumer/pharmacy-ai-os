@@ -5,6 +5,8 @@ import ReactMarkdown from 'react-markdown';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import InventoryDashboard from '@/components/InventoryDashboard';
+import DashboardSidebar from '@/components/DashboardSidebar';
+import AppIcon from '@/components/AppIcon';
 import { getApiErrorMessage } from '@/lib/apiError';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
@@ -130,8 +132,11 @@ export default function Home() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <p className="text-slate-400">Loading...</p>
+      <main className="flex min-h-screen items-center justify-center bg-[#f5f7fa]">
+        <div className="text-center">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-teal-600" />
+          <p className="mt-3 text-sm font-medium text-slate-500">Loading your pharmacy workspace…</p>
+        </div>
       </main>
     );
   }
@@ -139,149 +144,77 @@ export default function Home() {
   if (!user) return null;
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 font-sans">
-      <div className="max-w-7xl mx-auto space-y-8">
-        
-        {/* Header Block */}
-        <header className="border-b border-slate-800 pb-6 flex justify-between items-start">
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-                RxOS - AI Pharmacy Operating System
-              </h1>
-              {isAdmin && (
-                <Link href="/admin" className="px-2 py-0.5 text-xs bg-amber-500/20 text-amber-400 rounded border border-amber-500/30 hover:bg-amber-500/30">
-                  Admin
-                </Link>
-              )}
-            </div>
-            <p className="text-slate-400 mt-2">Intelligent operations, inventory prediction, and risk mitigation.</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link href="/sales" className="px-3 py-1 text-sm text-emerald-300 border border-emerald-500/30 rounded-md hover:bg-emerald-500/10">
-              Sales
-            </Link>
-            <Link href="/purchasing" className="px-3 py-1 text-sm text-cyan-300 border border-cyan-500/30 rounded-md hover:bg-cyan-500/10">
-              Purchasing
-            </Link>
-            <span className="text-sm text-slate-400">
-              {user.full_name || user.email}
-              <span className="ml-2 text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400">{user.role}</span>
-            </span>
-            <button
-              onClick={logout}
-              className="px-3 py-1 text-sm text-slate-400 hover:text-slate-200 border border-slate-700 rounded-md hover:bg-slate-800 transition-colors"
-            >
-              Sign Out
-            </button>
-          </div>
-        </header>
-
-        <InventoryDashboard authFetch={authFetch} refreshKey={inventoryRefreshKey} />
-
-        {/* Data Ingestion Panel */}
-        <section className="bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-xl">
-          <h2 className="text-xl font-semibold text-slate-200 mb-4">Import inventory CSV</h2>
-          <form onSubmit={handleUpload} className="flex flex-col sm:flex-row gap-4 items-center">
-            <input 
-              type="file" accept=".csv"
-              onChange={(e) => setFile(e.target.files[0])}
-              className="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-emerald-500/10 file:text-emerald-400 hover:file:bg-emerald-500/20 cursor-pointer"
-            />
-            <button type="submit" disabled={uploading} className="w-full sm:w-auto px-6 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 text-white font-medium rounded-md transition-colors">
-              {uploading ? 'Processing...' : 'Upload CSV'}
-            </button>
-          </form>
-          {statusMessage && <p className="mt-4 text-sm font-medium">{statusMessage}</p>}
-        </section>
-
-        {/* Conversational AI Explorer Box */}
-        <section className="bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-xl space-y-4">
-          <h2 className="text-xl font-semibold text-slate-200">Conversational Database Explorer (Type or Speak)</h2>
-          <form onSubmit={handleNaturalSearch} className="flex gap-2">
-            <div className="relative flex-1">
-              <input 
-                type="text"
-                placeholder='Ask anything... e.g., "Show me antibiotics running low" or "Find paracetamol"'
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-md py-2 pl-4 pr-12 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500"
-              />
-              <button
-                type="button"
-                onClick={toggleVoiceListening}
-                className={`absolute right-2 top-1.5 p-1 rounded-md transition-colors ${isListening ? 'bg-red-500/20 text-red-400 animate-pulse' : 'text-slate-400 hover:bg-slate-800'}`}
-                title="Speak command"
-              >
-                Mic
-              </button>
-            </div>
-            <button type="submit" disabled={searching} className="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-700 text-white font-medium rounded-md text-sm transition-colors">
-              {searching ? 'Querying...' : 'Ask'}
-            </button>
-          </form>
-
-          {searchError && (
-            <div role="alert" className="rounded-md border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-              {searchError}
-            </div>
-          )}
-
-          {/* Results Render Box */}
-          {searchResults && (
-            <div className="mt-4 space-y-2 bg-slate-950 p-4 rounded-lg border border-slate-850">
-              <div className="text-xs text-slate-500 font-mono mb-2">
-                SQL Run: {searchResults.query_generated}
+    <DashboardSidebar user={user} isAdmin={isAdmin} onLogout={logout}>
+      <main className="px-4 py-7 md:px-8 lg:px-10 lg:py-9">
+        <div className="mx-auto max-w-[1500px] space-y-8">
+          <section className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
+            <div>
+              <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-teal-600">
+                <span className="h-px w-7 bg-teal-500" /> Live operations
               </div>
-              {searchResults.data.length === 0 ? (
-                <p className="text-sm text-slate-400 italic">No matching items found inside the database pool.</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm text-slate-300">
-                    <thead className="text-xs uppercase bg-slate-900 text-slate-400">
-                      <tr>
-                        {Object.keys(searchResults.data[0]).map((key) => (
-                          <th key={key} className="px-4 py-2 border-b border-slate-800">{key}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {searchResults.data.map((row, idx) => (
-                        <tr key={idx} className="hover:bg-slate-900/50">
-                          {Object.values(row).map((val, i) => (
-                            <td key={i} className="px-4 py-2 border-b border-slate-850 max-w-xs truncate">{String(val)}</td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              <h1 className="text-3xl font-extrabold tracking-tight text-slate-950 md:text-[2.15rem]">Dashboard overview</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Monitor stock health, prevent expiry loss, and move quickly between daily pharmacy tasks.</p>
+            </div>
+            <div className="flex flex-wrap gap-2.5">
+              <Link href="/purchasing" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50">
+                <AppIcon name="purchasing" className="h-4 w-4" /> Purchase order
+              </Link>
+              <Link href="/sales" className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-teal-200 transition hover:bg-teal-700">
+                <AppIcon name="plus" className="h-4 w-4" /> New sale
+              </Link>
+            </div>
+          </section>
+
+          <InventoryDashboard authFetch={authFetch} refreshKey={inventoryRefreshKey} />
+
+          <div className="grid gap-5 xl:grid-cols-[1.45fr_0.8fr]">
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_35px_rgba(15,23,42,0.06)] md:p-6">
+              <div className="mb-5 flex items-start gap-3">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-teal-50 text-teal-600"><AppIcon name="sparkles" /></div>
+                <div><h2 className="font-bold text-slate-900">Ask your inventory</h2><p className="mt-0.5 text-sm text-slate-500">Use plain language to find stock, categories, or risk.</p></div>
+              </div>
+              <form onSubmit={handleNaturalSearch} className="flex flex-col gap-2 sm:flex-row">
+                <div className="relative flex-1">
+                  <AppIcon name="search" className="pointer-events-none absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+                  <input type="text" placeholder='Try “show medicines running low”' value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-16 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-teal-400 focus:bg-white focus:ring-4 focus:ring-teal-50" />
+                  <button type="button" onClick={toggleVoiceListening} className={`absolute right-2 top-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-bold transition ${isListening ? 'bg-rose-100 text-rose-600' : 'text-slate-500 hover:bg-slate-200'}`} title="Speak command">{isListening ? 'Listening' : 'Speak'}</button>
+                </div>
+                <button type="submit" disabled={searching} className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50">{searching ? 'Searching…' : 'Ask RxOS'}</button>
+              </form>
+              {searchError && <div role="alert" className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{searchError}</div>}
+              {searchResults && (
+                <div className="mt-5 overflow-hidden rounded-xl border border-slate-200">
+                  {searchResults.data.length === 0 ? <p className="p-5 text-sm text-slate-500">No matching inventory was found.</p> : (
+                    <div className="overflow-x-auto"><table className="w-full text-left text-sm text-slate-700"><thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500"><tr>{Object.keys(searchResults.data[0]).map((key) => <th key={key} className="border-b border-slate-200 px-4 py-3">{key}</th>)}</tr></thead><tbody>{searchResults.data.map((row, idx) => <tr key={idx} className="border-b border-slate-100 last:border-0">{Object.values(row).map((val, i) => <td key={i} className="max-w-xs truncate px-4 py-3">{String(val)}</td>)}</tr>)}</tbody></table></div>
+                  )}
                 </div>
               )}
-            </div>
-          )}
-        </section>
+            </section>
 
-        {/* AI Briefing Output Interface */}
-        <section className="bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-xl space-y-4">
-          <div className="flex justify-between items-center border-b border-slate-800 pb-4">
-            <h2 className="text-xl font-semibold text-slate-200">AI Operations Briefing</h2>
-            <button onClick={fetchBriefing} disabled={loadingBriefing} className="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-700 text-white font-medium rounded-md transition-colors text-sm">
-              {loadingBriefing ? 'Analyzing Data...' : 'Generate Live Insights'}
-            </button>
-          </div>
-
-          <div className="min-h-[150px] bg-slate-950 rounded-lg p-6 border border-slate-850 text-slate-300 leading-relaxed whitespace-pre-wrap">
-            {briefing ? (
-              <div className="prose prose-invert max-w-none tracking-wide space-y-2">
-                <ReactMarkdown>{briefing}</ReactMarkdown>
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_35px_rgba(15,23,42,0.06)] md:p-6">
+              <div className="mb-5 flex items-start gap-3">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-sky-50 text-sky-600"><AppIcon name="upload" /></div>
+                <div><h2 className="font-bold text-slate-900">Import inventory</h2><p className="mt-0.5 text-sm text-slate-500">Upload your prepared CSV stock file.</p></div>
               </div>
-            ) : (
-              <p className="text-slate-500 italic text-center pt-12">Click &quot;Generate Live Insights&quot; to analyze current pharmacy operations with Groq AI.</p>
-            )}
+              <form onSubmit={handleUpload} className="space-y-3">
+                <input type="file" accept=".csv" onChange={(e) => setFile(e.target.files[0])} className="block w-full rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 text-sm text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:text-xs file:font-bold file:text-teal-700 hover:border-teal-300" />
+                <button type="submit" disabled={uploading} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50">{uploading ? 'Importing…' : 'Upload CSV'}</button>
+              </form>
+              {statusMessage && <p className="mt-3 text-sm font-medium text-slate-600">{statusMessage}</p>}
+            </section>
           </div>
-        </section>
 
-      </div>
-    </main>
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_35px_rgba(15,23,42,0.06)]">
+            <div className="flex flex-col justify-between gap-4 border-b border-slate-200 p-5 sm:flex-row sm:items-center md:px-6">
+              <div className="flex items-start gap-3"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-violet-50 text-violet-600"><AppIcon name="sparkles" /></div><div><h2 className="font-bold text-slate-900">AI operations briefing</h2><p className="mt-0.5 text-sm text-slate-500">A concise review of today’s stock and expiry priorities.</p></div></div>
+              <button onClick={fetchBriefing} disabled={loadingBriefing} className="rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:opacity-50">{loadingBriefing ? 'Analyzing…' : 'Generate briefing'}</button>
+            </div>
+            <div className="min-h-40 p-5 text-sm leading-7 text-slate-700 md:p-6">
+              {briefing ? <div className="prose max-w-none"><ReactMarkdown>{briefing}</ReactMarkdown></div> : <div className="grid min-h-28 place-items-center rounded-xl border border-dashed border-slate-200 bg-slate-50 text-center text-slate-500"><p>Generate a live briefing when you are ready to review operations.</p></div>}
+            </div>
+          </section>
+        </div>
+      </main>
+    </DashboardSidebar>
   );
 }

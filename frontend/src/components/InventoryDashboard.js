@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getApiErrorMessage } from '@/lib/apiError';
+import AppIcon from './AppIcon';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 const money = new Intl.NumberFormat('en-PK', {
@@ -16,9 +17,9 @@ function expiryLabel(expiryDate) {
   today.setHours(0, 0, 0, 0);
   const expiry = new Date(`${expiryDate}T00:00:00`);
   const days = Math.ceil((expiry - today) / 86400000);
-  if (days < 0) return { text: 'Expired', className: 'bg-red-500/15 text-red-300' };
-  if (days <= 90) return { text: `${days}d left`, className: 'bg-amber-500/15 text-amber-300' };
-  return { text: 'Valid', className: 'bg-emerald-500/15 text-emerald-300' };
+  if (days < 0) return { text: 'Expired', className: 'border-rose-200 bg-rose-50 text-rose-700' };
+  if (days <= 90) return { text: `${days}d left`, className: 'border-amber-200 bg-amber-50 text-amber-700' };
+  return { text: 'Valid', className: 'border-emerald-200 bg-emerald-50 text-emerald-700' };
 }
 
 export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
@@ -218,81 +219,90 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
   };
 
   const cards = summary ? [
-    ['Products', summary.total_products, 'text-cyan-300'],
-    ['Units in stock', summary.total_units, 'text-slate-100'],
-    ['Low stock', summary.low_stock_products, summary.low_stock_products ? 'text-amber-300' : 'text-emerald-300'],
-    ['Expiring ≤90d', summary.expiring_batches, summary.expiring_batches ? 'text-amber-300' : 'text-emerald-300'],
-    ['Expired batches', summary.expired_batches, summary.expired_batches ? 'text-red-300' : 'text-emerald-300'],
-    ['Inventory cost', money.format(summary.cost_value), 'text-slate-100'],
-    ['Retail value', money.format(summary.retail_value), 'text-emerald-300'],
-    ['Potential margin', money.format(summary.potential_margin), 'text-cyan-300'],
+    { label: 'Total products', value: summary.total_products, icon: 'package', tone: 'teal', hint: `${summary.total_units} units available` },
+    { label: 'Inventory value', value: money.format(summary.retail_value), icon: 'wallet', tone: 'sky', hint: `${money.format(summary.cost_value)} at cost` },
+    { label: 'Low stock', value: summary.low_stock_products, icon: 'alert', tone: summary.low_stock_products ? 'amber' : 'emerald', hint: summary.low_stock_products ? 'Needs attention' : 'Stock levels healthy' },
+    { label: 'Expiring soon', value: summary.expiring_batches, icon: 'calendar', tone: summary.expiring_batches ? 'rose' : 'emerald', hint: `${summary.expired_batches} already expired` },
   ] : [];
 
   return (
-    <section className="space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+    <section className="inventory-dashboard space-y-6">
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div>
-          <h2 className="text-xl font-semibold text-slate-100">Inventory overview</h2>
-          <p className="text-sm text-slate-400 mt-1">Live stock, expiry risk, and inventory value for your pharmacy.</p>
+          <h2 className="text-xl font-bold text-slate-900">Inventory overview</h2>
+          <p className="mt-1 text-sm text-slate-500">Live stock, expiry risk, and inventory value for your pharmacy.</p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={toggleMovements} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-md text-sm">
-            {showMovements ? 'Hide history' : 'Movement history'}
+        <div className="flex flex-wrap gap-2">
+          <button onClick={toggleMovements} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50">
+            <AppIcon name="history" className="h-4 w-4" /> {showMovements ? 'Hide history' : 'Movement history'}
           </button>
-          <button onClick={() => setShowAddForm(true)} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-md text-sm font-medium">
-            Add batch
+          <button onClick={() => setShowAddForm(true)} className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-teal-200 transition hover:bg-teal-700">
+            <AppIcon name="plus" className="h-4 w-4" /> Add stock batch
           </button>
         </div>
       </div>
 
-      {error && <div className="p-3 rounded-lg border border-red-500/30 bg-red-500/10 text-red-300 text-sm">{error}</div>}
+      {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {cards.map(([label, value, color]) => (
-          <div key={label} className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-            <p className="text-xs uppercase tracking-wide text-slate-500">{label}</p>
-            <p className={`text-2xl font-semibold mt-2 ${color}`}>{value}</p>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {cards.map((card) => (
+          <div key={card.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_35px_rgba(15,23,42,0.06)]">
+            <div className="flex items-start justify-between gap-3">
+              <div><p className="text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">{card.label}</p><p className="mt-2 text-2xl font-extrabold tracking-tight text-slate-900">{card.value}</p></div>
+              <div className={`metric-icon metric-icon-${card.tone}`}><AppIcon name={card.icon} className="h-5 w-5" /></div>
+            </div>
+            <p className="mt-3 text-xs font-medium text-slate-500">{card.hint}</p>
           </div>
         ))}
       </div>
 
+      {summary && <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-3">
+        <ValueStat label="Inventory cost" value={money.format(summary.cost_value)} />
+        <ValueStat label="Potential sales" value={money.format(summary.retail_value)} />
+        <ValueStat label="Potential margin" value={money.format(summary.potential_margin)} accent />
+      </div>}
+
       {reorderSuggestions.length > 0 && (
-        <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-5">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-5">
           <div className="flex justify-between items-start gap-4 mb-4">
-            <div><h3 className="font-semibold text-amber-200">Reorder suggestions</h3><p className="text-xs text-slate-400 mt-1">Targets approximately twice the configured minimum stock level.</p></div>
-            <Link href="/purchasing" className="text-sm text-cyan-300 whitespace-nowrap">Open purchasing →</Link>
+            <div><h3 className="font-bold text-amber-900">Reorder suggestions</h3><p className="mt-1 text-xs text-amber-800/70">Targets approximately twice the configured minimum stock level.</p></div>
+            <Link href="/purchasing" className="inline-flex items-center gap-1 whitespace-nowrap text-sm font-semibold text-amber-800">Open purchasing <AppIcon name="arrow" className="h-4 w-4" /></Link>
           </div>
           <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
             {reorderSuggestions.slice(0, 6).map((suggestion) => (
-              <div key={suggestion.product_id} className="bg-slate-950/70 rounded-lg p-3 text-sm">
-                <p className="font-medium">{suggestion.product_name}</p>
+              <div key={suggestion.product_id} className="rounded-xl border border-amber-200/70 bg-white p-3.5 text-sm shadow-sm">
+                <p className="font-semibold text-slate-900">{suggestion.product_name}</p>
                 <p className="text-xs text-slate-500">{suggestion.generic_name}</p>
-                <div className="flex justify-between mt-3"><span className="text-slate-400">Stock {suggestion.current_stock} / min {suggestion.min_stock_level}</span><span className="font-semibold text-amber-300">Order {suggestion.suggested_quantity}</span></div>
-                <p className="text-xs text-slate-500 mt-1">{suggestion.last_supplier || 'No previous supplier'}</p>
+                <div className="mt-3 flex justify-between gap-3"><span className="text-slate-500">Stock {suggestion.current_stock} / min {suggestion.min_stock_level}</span><span className="font-bold text-amber-700">Order {suggestion.suggested_quantity}</span></div>
+                <p className="mt-1 text-xs text-slate-400">{suggestion.last_supplier || 'No previous supplier'}</p>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-        <div className="p-4 border-b border-slate-800 flex flex-col lg:flex-row gap-3 justify-between">
-          <form onSubmit={submitSearch} className="flex gap-2 flex-1 max-w-xl">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_35px_rgba(15,23,42,0.06)]">
+        <div className="flex flex-col justify-between gap-4 border-b border-slate-200 p-5 lg:flex-row lg:items-center">
+          <div><h3 className="font-bold text-slate-900">Inventory management</h3><p className="mt-1 text-xs text-slate-500">Search, filter, and manage every active stock batch.</p></div>
+          <form onSubmit={submitSearch} className="flex max-w-xl flex-1 gap-2 lg:ml-auto">
+            <div className="relative min-w-0 flex-1">
+              <AppIcon name="search" className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
             <input
               value={draftSearch}
               onChange={(event) => setDraftSearch(event.target.value)}
               placeholder="Search product, generic, category, or batch"
-              className="flex-1 bg-slate-950 border border-slate-700 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-teal-400 focus:bg-white focus:ring-4 focus:ring-teal-50"
             />
-            <button className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-md text-sm font-medium">Search</button>
+            </div>
+            <button className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Search</button>
           </form>
-          <div className="flex gap-2">
-            <select value={stockStatus} onChange={(event) => setStockStatus(event.target.value)} className="bg-slate-950 border border-slate-700 rounded-md px-3 py-2 text-sm">
+          <div className="flex gap-2 overflow-x-auto">
+            <select aria-label="Stock status" value={stockStatus} onChange={(event) => setStockStatus(event.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 outline-none focus:border-teal-400">
               <option value="all">All stock</option>
               <option value="low_stock">Low stock</option>
               <option value="in_stock">In stock</option>
             </select>
-            <select value={expiryStatus} onChange={(event) => setExpiryStatus(event.target.value)} className="bg-slate-950 border border-slate-700 rounded-md px-3 py-2 text-sm">
+            <select aria-label="Expiry status" value={expiryStatus} onChange={(event) => setExpiryStatus(event.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 outline-none focus:border-teal-400">
               <option value="all">All expiry</option>
               <option value="expiring">Expiring ≤90d</option>
               <option value="expired">Expired</option>
@@ -302,8 +312,8 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-slate-950/70 text-xs uppercase text-slate-500">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
               <tr>
                 <th className="px-4 py-3">Product</th>
                 <th className="px-4 py-3">Batch</th>
@@ -314,81 +324,81 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
                 <th className="px-4 py-3">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-slate-100 text-slate-700">
               {!loading && items.map((item) => {
                 const expiry = expiryLabel(item.expiry_date);
                 const lowStock = item.total_stock <= item.min_stock_level;
                 return (
-                  <tr key={item.batch_id} className="hover:bg-slate-800/40">
+                  <tr key={item.batch_id} className="transition hover:bg-slate-50/80">
                     <td className="px-4 py-3">
-                      <p className="font-medium text-slate-200">{item.name}</p>
-                      <p className="text-xs text-slate-500">{item.generic_name} · {item.category}</p>
+                      <p className="font-semibold text-slate-900">{item.name}</p>
+                      <p className="mt-0.5 text-xs text-slate-500">{item.generic_name} · {item.category}</p>
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-slate-400">{item.batch_number}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-slate-500">{item.batch_number}</td>
                     <td className="px-4 py-3">{item.quantity}</td>
                     <td className="px-4 py-3">
-                      <span className={lowStock ? 'text-amber-300' : 'text-slate-200'}>{item.total_stock}</span>
+                      <span className={`font-semibold ${lowStock ? 'text-amber-700' : 'text-slate-900'}`}>{item.total_stock}</span>
                       <span className="text-xs text-slate-500"> / min {item.min_stock_level}</span>
                     </td>
                     <td className="px-4 py-3">
                       <p>{item.expiry_date}</p>
-                      <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs ${expiry.className}`}>{expiry.text}</span>
+                      <span className={`mt-1 inline-block rounded-full border px-2 py-0.5 text-[11px] font-semibold ${expiry.className}`}>{expiry.text}</span>
                     </td>
                     <td className="px-4 py-3 text-xs">
                       <p>{money.format(item.cost_price)}</p>
-                      <p className="text-emerald-300">{money.format(item.retail_price)}</p>
+                      <p className="font-semibold text-emerald-700">{money.format(item.retail_price)}</p>
                     </td>
                     <td className="px-4 py-3 space-x-2 whitespace-nowrap">
-                      <button onClick={() => setAdjustingItem(item)} className="px-3 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 rounded text-xs">
+                      <button onClick={() => setAdjustingItem(item)} className="rounded-lg bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-700 hover:bg-teal-100">
                         Adjust
                       </button>
-                      <button onClick={() => setEditingItem(item)} className="px-3 py-1.5 bg-slate-700/50 hover:bg-slate-700 text-slate-300 rounded text-xs">Edit</button>
-                      {item.quantity === 0 && <button onClick={() => archiveItem('batch', item)} className="px-2 py-1.5 text-red-300 text-xs">Archive batch</button>}
-                      {item.total_stock === 0 && <button onClick={() => archiveItem('product', item)} className="px-2 py-1.5 text-red-300 text-xs">Archive product</button>}
+                      <button onClick={() => setEditingItem(item)} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">Edit</button>
+                      {item.quantity === 0 && <button onClick={() => archiveItem('batch', item)} className="px-2 py-1.5 text-xs font-semibold text-rose-600">Archive batch</button>}
+                      {item.total_stock === 0 && <button onClick={() => archiveItem('product', item)} className="px-2 py-1.5 text-xs font-semibold text-rose-600">Archive product</button>}
                     </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
-          {loading && <p className="text-center py-10 text-slate-500">Loading inventory…</p>}
-          {!loading && items.length === 0 && <p className="text-center py-10 text-slate-500">No inventory matches these filters.</p>}
+          {loading && <p className="py-12 text-center text-sm text-slate-500">Loading inventory…</p>}
+          {!loading && items.length === 0 && <p className="py-12 text-center text-sm text-slate-500">No inventory matches these filters.</p>}
         </div>
 
         {total > limit && (
-          <div className="p-4 border-t border-slate-800 flex justify-between items-center text-sm">
+          <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50/70 p-4 text-sm">
             <span className="text-slate-500">{total} batches</span>
             <div className="flex gap-2 items-center">
-              <button onClick={() => loadInventory(page - 1)} disabled={page === 1 || loading} className="px-3 py-1 bg-slate-800 rounded disabled:opacity-40">Previous</button>
+              <button onClick={() => loadInventory(page - 1)} disabled={page === 1 || loading} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-medium disabled:opacity-40">Previous</button>
               <span className="text-slate-400">Page {page} of {Math.ceil(total / limit)}</span>
-              <button onClick={() => loadInventory(page + 1)} disabled={page * limit >= total || loading} className="px-3 py-1 bg-slate-800 rounded disabled:opacity-40">Next</button>
+              <button onClick={() => loadInventory(page + 1)} disabled={page * limit >= total || loading} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-medium disabled:opacity-40">Next</button>
             </div>
           </div>
         )}
       </div>
 
       {showMovements && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-          <div className="p-4 border-b border-slate-800 flex justify-between">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_35px_rgba(15,23,42,0.06)]">
+          <div className="flex justify-between border-b border-slate-200 p-5">
             <div>
-              <h3 className="font-semibold">Stock movement history</h3>
-              <p className="text-xs text-slate-500 mt-1">Latest 25 of {movementTotal} audited movements</p>
+              <h3 className="font-bold text-slate-900">Stock movement history</h3>
+              <p className="mt-1 text-xs text-slate-500">Latest 25 of {movementTotal} audited movements</p>
             </div>
-            <button onClick={loadMovements} className="text-sm text-cyan-300">Refresh</button>
+            <button onClick={loadMovements} className="text-sm font-semibold text-teal-700">Refresh</button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-950/70 text-xs uppercase text-slate-500 text-left">
+              <thead className="bg-slate-50 text-left text-[11px] uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-4 py-3">Date</th><th className="px-4 py-3">Product / Batch</th><th className="px-4 py-3">Change</th><th className="px-4 py-3">Balance</th><th className="px-4 py-3">Reason</th><th className="px-4 py-3">Note</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800">
+              <tbody className="divide-y divide-slate-100 text-slate-700">
                 {movements.map((movement) => (
                   <tr key={movement.id}>
                     <td className="px-4 py-3 text-xs text-slate-400">{new Date(movement.created_at).toLocaleString()}</td>
                     <td className="px-4 py-3"><p>{movement.product_name}</p><p className="text-xs text-slate-500">{movement.batch_number}</p></td>
-                    <td className={`px-4 py-3 font-semibold ${movement.quantity_change > 0 ? 'text-emerald-300' : 'text-red-300'}`}>{movement.quantity_change > 0 ? '+' : ''}{movement.quantity_change}</td>
+                    <td className={`px-4 py-3 font-semibold ${movement.quantity_change > 0 ? 'text-emerald-700' : 'text-rose-600'}`}>{movement.quantity_change > 0 ? '+' : ''}{movement.quantity_change}</td>
                     <td className="px-4 py-3">{movement.quantity_before} → {movement.quantity_after}</td>
                     <td className="px-4 py-3 capitalize">{movement.reason}</td>
                     <td className="px-4 py-3 text-slate-400">{movement.note || '—'}</td>
@@ -402,11 +412,11 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
       )}
 
       {showAddForm && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <form onSubmit={createItem} className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-slate-900 border border-slate-700 rounded-xl p-6 space-y-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm">
+          <form onSubmit={createItem} className="max-h-[90vh] w-full max-w-2xl space-y-5 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 text-slate-800 shadow-2xl">
             <div className="flex justify-between items-center">
               <div><h3 className="text-lg font-semibold">Add inventory batch</h3><p className="text-xs text-slate-500">Opening quantity will be recorded in the stock ledger.</p></div>
-              <button type="button" onClick={() => setShowAddForm(false)} className="text-slate-400 hover:text-white">Close</button>
+              <button type="button" onClick={() => setShowAddForm(false)} className="text-sm font-semibold text-slate-500 hover:text-slate-900">Close</button>
             </div>
             <div className="grid sm:grid-cols-2 gap-4">
               <label className="text-sm text-slate-400">Product name<input required name="product_name" className="form-input" /></label>
@@ -421,16 +431,16 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
               <label className="text-sm text-slate-400">Retail price<input required type="number" min="0" step="0.01" name="retail_price" className="form-input" /></label>
             </div>
             <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => setShowAddForm(false)} className="px-4 py-2 bg-slate-800 rounded-md text-sm">Cancel</button>
-              <button disabled={actionLoading} className="px-4 py-2 bg-emerald-600 rounded-md text-sm font-medium disabled:opacity-50">{actionLoading ? 'Saving…' : 'Create batch'}</button>
+              <button type="button" onClick={() => setShowAddForm(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600">Cancel</button>
+              <button disabled={actionLoading} className="rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{actionLoading ? 'Saving…' : 'Create batch'}</button>
             </div>
           </form>
         </div>
       )}
 
       {adjustingItem && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <form onSubmit={adjustStock} className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-xl p-6 space-y-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm">
+          <form onSubmit={adjustStock} className="w-full max-w-md space-y-5 rounded-2xl border border-slate-200 bg-white p-6 text-slate-800 shadow-2xl">
             <div>
               <h3 className="text-lg font-semibold">Adjust stock</h3>
               <p className="text-sm text-slate-400 mt-1">{adjustingItem.name} · {adjustingItem.batch_number}</p>
@@ -446,17 +456,17 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
             </label>
             <label className="block text-sm text-slate-400">Note<textarea name="note" maxLength="500" rows="3" className="form-input" /></label>
             <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => setAdjustingItem(null)} className="px-4 py-2 bg-slate-800 rounded-md text-sm">Cancel</button>
-              <button disabled={actionLoading} className="px-4 py-2 bg-cyan-600 rounded-md text-sm font-medium disabled:opacity-50">{actionLoading ? 'Saving…' : 'Save adjustment'}</button>
+              <button type="button" onClick={() => setAdjustingItem(null)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600">Cancel</button>
+              <button disabled={actionLoading} className="rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{actionLoading ? 'Saving…' : 'Save adjustment'}</button>
             </div>
           </form>
         </div>
       )}
 
       {editingItem && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <form onSubmit={updateItem} className="w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-slate-900 border border-slate-700 rounded-xl p-6 space-y-5">
-            <div className="flex justify-between"><div><h3 className="text-lg font-semibold">Edit product and batch</h3><p className="text-xs text-slate-500">Stock quantity can only be changed through an audited adjustment or sale.</p></div><button type="button" onClick={() => setEditingItem(null)} className="text-slate-400">Close</button></div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm">
+          <form onSubmit={updateItem} className="max-h-[90vh] w-full max-w-3xl space-y-5 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 text-slate-800 shadow-2xl">
+            <div className="flex justify-between"><div><h3 className="text-lg font-semibold">Edit product and batch</h3><p className="text-xs text-slate-500">Stock quantity can only be changed through an audited adjustment or sale.</p></div><button type="button" onClick={() => setEditingItem(null)} className="text-sm font-semibold text-slate-500">Close</button></div>
             <div className="grid sm:grid-cols-2 gap-4">
               <label className="text-sm text-slate-400">Product name<input required name="name" defaultValue={editingItem.name} className="form-input" /></label>
               <label className="text-sm text-slate-400">Generic name<input required name="generic_name" defaultValue={editingItem.generic_name} className="form-input" /></label>
@@ -472,10 +482,14 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
               <label className="text-sm text-slate-400">Cost price<input required type="number" min="0" step="0.01" name="cost_price" defaultValue={editingItem.cost_price} className="form-input" /></label>
               <label className="text-sm text-slate-400">Retail price<input required type="number" min="0" step="0.01" name="retail_price" defaultValue={editingItem.retail_price} className="form-input" /></label>
             </div>
-            <div className="flex justify-end gap-2"><button type="button" onClick={() => setEditingItem(null)} className="px-4 py-2 bg-slate-800 rounded-md text-sm">Cancel</button><button disabled={actionLoading} className="px-4 py-2 bg-emerald-600 rounded-md text-sm font-medium disabled:opacity-50">{actionLoading ? 'Saving…' : 'Save changes'}</button></div>
+            <div className="flex justify-end gap-2"><button type="button" onClick={() => setEditingItem(null)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600">Cancel</button><button disabled={actionLoading} className="rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{actionLoading ? 'Saving…' : 'Save changes'}</button></div>
           </form>
         </div>
       )}
     </section>
   );
+}
+
+function ValueStat({ label, value, accent = false }) {
+  return <div className="rounded-xl bg-slate-50 px-4 py-3"><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">{label}</p><p className={`mt-1 text-lg font-bold ${accent ? 'text-teal-700' : 'text-slate-800'}`}>{value}</p></div>;
 }
