@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { getApiErrorMessage } from '@/lib/apiError';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
@@ -33,7 +34,7 @@ export default function ForgotPasswordPage() {
         body: JSON.stringify({ email }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Failed to send reset request');
+      if (!res.ok) throw new Error(getApiErrorMessage(data, 'Failed to send reset request'));
       if (data.reset_token) {
         setResetToken(data.reset_token);
         setStep(2);
@@ -59,7 +60,7 @@ export default function ForgotPasswordPage() {
         body: JSON.stringify({ token: resetToken, new_password: newPassword }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Reset failed');
+      if (!res.ok) throw new Error(getApiErrorMessage(data, 'Reset failed'));
       setMessage('Password reset successful! You can now sign in.');
       setStep(3);
     } catch (err) {

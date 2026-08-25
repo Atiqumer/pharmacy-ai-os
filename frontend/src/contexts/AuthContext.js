@@ -1,5 +1,6 @@
 'use client';
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { getApiErrorMessage } from '@/lib/apiError';
 
 const AuthContext = createContext(null);
 
@@ -31,7 +32,7 @@ export function AuthProvider({ children }) {
       body: JSON.stringify({ email, password }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || 'Login failed');
+    if (!res.ok) throw new Error(getApiErrorMessage(data, 'Login failed'));
 
     localStorage.setItem('rxos_token', data.token);
     localStorage.setItem('rxos_user', JSON.stringify(data.user));
@@ -47,7 +48,7 @@ export function AuthProvider({ children }) {
       body: JSON.stringify({ email, password, full_name }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || 'Signup failed');
+    if (!res.ok) throw new Error(getApiErrorMessage(data, 'Signup failed'));
 
     localStorage.setItem('rxos_token', data.token);
     localStorage.setItem('rxos_user', JSON.stringify(data.user));

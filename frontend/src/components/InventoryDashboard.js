@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { getApiErrorMessage } from '@/lib/apiError';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 const money = new Intl.NumberFormat('en-PK', {
@@ -100,7 +101,7 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
         body: JSON.stringify(payload),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || 'Inventory batch could not be created');
+      if (!response.ok) throw new Error(getApiErrorMessage(data, 'Inventory batch could not be created'));
       setShowAddForm(false);
       await loadInventory(1);
     } catch (err) {
@@ -128,7 +129,7 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
         body: JSON.stringify(payload),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || 'Stock could not be adjusted');
+      if (!response.ok) throw new Error(getApiErrorMessage(data, 'Stock could not be adjusted'));
       setAdjustingItem(null);
       await loadInventory(page);
       if (showMovements) await loadMovements();
@@ -144,7 +145,7 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
     try {
       const response = await authFetch(`${API_URL}/inventory/movements?limit=25`);
       const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || 'Stock history could not be loaded');
+      if (!response.ok) throw new Error(getApiErrorMessage(data, 'Stock history could not be loaded'));
       setMovements(data.movements);
       setMovementTotal(data.total);
     } catch (err) {

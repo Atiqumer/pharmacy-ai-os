@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { getApiErrorMessage } from '@/lib/apiError';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 const money = new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 });
@@ -70,7 +71,7 @@ export default function PurchasingPage() {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || 'Supplier could not be created');
+      if (!response.ok) throw new Error(getApiErrorMessage(data, 'Supplier could not be created'));
       setShowSupplierForm(false);
       await loadWorkspace();
     } catch (err) { setError(err.message); } finally { setActionLoading(false); }
@@ -96,7 +97,7 @@ export default function PurchasingPage() {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || 'Purchase order could not be created');
+      if (!response.ok) throw new Error(getApiErrorMessage(data, 'Purchase order could not be created'));
       setShowOrderForm(false);
       setOrderLines([{ product_id: '', quantity: 1, cost_price: '' }]);
       await loadWorkspace();
@@ -112,7 +113,7 @@ export default function PurchasingPage() {
     try {
       const response = await authFetch(`${API_URL}/purchasing/orders/${orderId}/submit`, { method: 'POST' });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || 'Order could not be submitted');
+      if (!response.ok) throw new Error(getApiErrorMessage(data, 'Order could not be submitted'));
       await loadWorkspace();
     } catch (err) { setError(err.message); } finally { setActionLoading(false); }
   };
@@ -122,7 +123,7 @@ export default function PurchasingPage() {
     try {
       const response = await authFetch(`${API_URL}/purchasing/orders/${orderId}`);
       const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || 'Order details could not be loaded');
+      if (!response.ok) throw new Error(getApiErrorMessage(data, 'Order details could not be loaded'));
       setReceiptOrder(data);
     } catch (err) { setError(err.message); } finally { setActionLoading(false); }
   };
@@ -144,7 +145,7 @@ export default function PurchasingPage() {
         body: JSON.stringify({ reference: form.get('reference') || null, notes: form.get('notes') || null, items }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || 'Goods receipt could not be posted');
+      if (!response.ok) throw new Error(getApiErrorMessage(data, 'Goods receipt could not be posted'));
       setReceiptOrder(null);
       await loadWorkspace();
     } catch (err) { setError(err.message); } finally { setActionLoading(false); }
