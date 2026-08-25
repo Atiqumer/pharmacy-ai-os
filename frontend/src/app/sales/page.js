@@ -79,10 +79,11 @@ export default function SalesPage() {
 
   const completeSale = async (event) => {
     event.preventDefault();
+    const saleForm = event.currentTarget;
     setActionLoading(true);
     setError('');
     setSuccess('');
-    const form = new FormData(event.currentTarget);
+    const form = new FormData(saleForm);
     const payload = {
       items: cart.map((line) => ({
         product_id: line.product_id,
@@ -100,7 +101,7 @@ export default function SalesPage() {
       if (!response.ok) throw new Error(getApiErrorMessage(data, 'Sale could not be completed'));
       setSuccess(`${data.sale_number} completed for ${money.format(data.total)}`);
       setCart([{ product_id: '', quantity: 1, unit_price: '' }]);
-      event.currentTarget.reset();
+      saleForm.reset();
       await loadWorkspace();
     } catch (err) {
       setError(err.message);
