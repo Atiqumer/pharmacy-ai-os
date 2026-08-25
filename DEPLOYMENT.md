@@ -158,13 +158,15 @@ confirm Vercel is building a commit that contains the `[project]` section in `ba
 1. In Netlify, select **Add new project > Import an existing project**.
 2. Choose GitHub and select this repository.
 3. Select the `recovery-hardening` branch.
-4. If Netlify detects the monorepo, choose the `frontend` site. Otherwise configure:
+4. Netlify will read the committed root-level `netlify.toml`, which defines:
 
 ```text
 Base directory: frontend
 Build command: npm run build
-Publish directory: .next
+Publish directory: frontend/out
 ```
+
+The dashboard can display `frontend/out` as a repository-relative resolved path. That is expected. The source value in `netlify.toml` is `out`, relative to the `frontend` base directory. The frontend uses Next.js static export, so the deployment does not require a Netlify server function or the OpenNext adapter.
 
 5. Add this environment variable before the first production build:
 
