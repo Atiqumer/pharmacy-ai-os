@@ -177,10 +177,10 @@ export default function SalesPage() {
 
   return (
     <DashboardSidebar user={user} isAdmin={isAdmin} onLogout={logout}>
-    <main className="app-content min-h-screen p-4 md:p-8 lg:p-9">
-      <div className="mx-auto max-w-7xl space-y-7">
-        <header className="flex flex-col sm:flex-row justify-between gap-4 border-b border-slate-800 pb-5">
-          <div><p className="page-eyebrow">Daily operations</p><h1 className="mt-1 text-3xl font-semibold tracking-tight">Sales</h1><p className="mt-1 text-slate-500">Checkout with FEFO batch allocation and auditable returns.</p></div>
+    <main className="app-content min-h-screen px-4 py-6 md:px-7 md:py-7">
+      <div className="mx-auto max-w-[1440px] space-y-7">
+        <header className="flex flex-col justify-between gap-4 border-b border-slate-200 pb-6 sm:flex-row">
+          <div><h1 className="text-2xl font-semibold tracking-tight text-slate-950">Sales workspace</h1><p className="mt-1.5 text-sm text-slate-500">Checkout with FEFO batch allocation and auditable returns.</p></div>
           <div className="flex gap-2 items-end"><button onClick={() => downloadReport('/reports/inventory.csv', 'inventory.csv')} className="px-3 py-2 bg-slate-800 rounded-md text-sm">Export inventory</button><button onClick={() => downloadReport('/reports/sales.csv', 'sales.csv')} className="px-3 py-2 bg-slate-800 rounded-md text-sm">Export sales</button></div>
         </header>
 

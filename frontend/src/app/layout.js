@@ -1,7 +1,14 @@
-'use client';
 import "./globals.css";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/contexts/AuthContext";
+
+export const metadata = {
+  title: {
+    default: 'RxOS Pharmacy',
+    template: '%s · RxOS',
+  },
+  description: 'Pharmacy inventory, sales, and purchasing workspace.',
+};
 
 export default function RootLayout({ children }) {
   return (

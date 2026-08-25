@@ -201,10 +201,10 @@ export default function PurchasingPage() {
 
   return (
     <DashboardSidebar user={user} isAdmin={isAdmin} onLogout={logout}>
-    <main className="app-content min-h-screen p-4 md:p-8 lg:p-9">
-      <div className="max-w-7xl mx-auto space-y-7">
-        <header className="flex flex-col sm:flex-row justify-between gap-4 border-b border-slate-800 pb-5">
-          <div><p className="page-eyebrow">Supply management</p><h1 className="mt-1 text-3xl font-semibold tracking-tight">Purchasing</h1><p className="mt-1 text-slate-500">Suppliers, purchase orders, and goods receiving.</p></div>
+    <main className="app-content min-h-screen px-4 py-6 md:px-7 md:py-7">
+      <div className="mx-auto max-w-[1440px] space-y-7">
+        <header className="flex flex-col justify-between gap-4 border-b border-slate-200 pb-6 sm:flex-row">
+          <div><h1 className="text-2xl font-semibold tracking-tight text-slate-950">Purchasing workspace</h1><p className="mt-1.5 text-sm text-slate-500">Suppliers, purchase orders, and goods receiving.</p></div>
           <div className="flex gap-2 items-end"><button onClick={() => setShowSupplierForm(true)} className="px-4 py-2 bg-slate-800 rounded-md text-sm">Add supplier</button><button onClick={() => { setEditingOrder(null); setOrderLines([{ product_id: '', quantity: 1, cost_price: '' }]); setShowOrderForm(true); }} disabled={!suppliers.length || !products.length} className="px-4 py-2 bg-emerald-600 rounded-md text-sm font-medium disabled:opacity-40">New purchase order</button></div>
         </header>
 

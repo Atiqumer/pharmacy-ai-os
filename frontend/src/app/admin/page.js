@@ -115,12 +115,11 @@ export default function AdminPage() {
 
   return (
     <DashboardSidebar user={user} isAdmin={isAdmin} onLogout={logout}>
-    <main className="app-content min-h-screen p-4 md:p-8 lg:p-9">
-      <div className="mx-auto max-w-5xl space-y-8">
+    <main className="app-content min-h-screen px-4 py-6 md:px-7 md:py-7">
+      <div className="mx-auto max-w-[1200px] space-y-7">
         <header className="border-b border-slate-200 pb-6">
-          <p className="page-eyebrow">Administration</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight">Team & access</h1>
-          <p className="mt-2 text-slate-500">Manage operator roles and account status.</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Team & access</h1>
+          <p className="mt-1.5 text-sm text-slate-500">Manage operator roles and account status.</p>
         </header>
 
         <section className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
