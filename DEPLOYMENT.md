@@ -143,6 +143,16 @@ https://YOUR-BACKEND.vercel.app/docs
 
 If `/health/ready` returns `503`, inspect **Vercel > Project > Logs**. The usual causes are an incorrect pooler URL, incorrect password, missing `sslmode=require`, or migrations that were not applied.
 
+### Vercel build troubleshooting
+
+If an older deployment reports this error:
+
+```text
+No `project` table found in: /vercel/path0/backend/pyproject.toml
+```
+
+confirm Vercel is building a commit that contains the `[project]` section in `backend/pyproject.toml`, then select **Redeploy** with **Use existing Build Cache** turned off. The current repository declares its runtime dependencies in both `pyproject.toml` for Vercel/uv and `requirements.txt` for pip and Docker. Keep those lists synchronized when adding or removing a backend dependency.
+
 ## 5. Deploy the Next.js frontend to Netlify
 
 1. In Netlify, select **Add new project > Import an existing project**.
