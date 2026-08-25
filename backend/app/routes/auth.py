@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr
 from app.database import get_db_connection
 from app.services.auth import create_access_token, get_current_user, require_role
@@ -6,8 +6,11 @@ from app.services.email_service import send_password_reset_email
 from starlette.concurrency import run_in_threadpool
 import hashlib
 import os
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+limiter = Limiter(key_func=get_remote_address)
 
 
 class SignupRequest(BaseModel):
@@ -36,7 +39,8 @@ class AuthResponse(BaseModel):
 
 
 @router.post("/signup", response_model=AuthResponse)
-async def signup(req: SignupRequest):
+@limiter.limit("5/minute")
+async def signup(request: Request, req: SignupRequest):
     if len(req.password) < 8:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -84,15 +88,16 @@ async def signup(req: SignupRequest):
         conn.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Signup failed: {str(e)}",
-        )
+            detail="Signup could not be completed",
+        ) from e
     finally:
         cursor.close()
         conn.close()
 
 
 @router.post("/login", response_model=AuthResponse)
-async def login(req: LoginRequest):
+@limiter.limit("10/minute")
+async def login(request: Request, req: LoginRequest):
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -160,7 +165,8 @@ async def get_me(current_user: dict = Depends(get_current_user)):
 
 
 @router.post("/password-reset-request")
-async def password_reset_request(req: PasswordResetRequest):
+@limiter.limit("5/minute")
+async def password_reset_request(request: Request, req: PasswordResetRequest):
     import secrets
     delivery_mode = os.getenv("PASSWORD_RESET_DELIVERY", "disabled").lower()
     if delivery_mode == "disabled":
@@ -207,7 +213,8 @@ async def password_reset_request(req: PasswordResetRequest):
 
 
 @router.post("/password-reset-confirm")
-async def password_reset_confirm(req: PasswordResetConfirm):
+@limiter.limit("5/minute")
+async def password_reset_confirm(request: Request, req: PasswordResetConfirm):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:

@@ -9,7 +9,7 @@ def generate_morning_briefing(owner_id: str = None):
     cursor = conn.cursor()
 
     try:
-        owner_filter = 'WHERE p."ownerId" = %s' if owner_id else ""
+        owner_filter = 'WHERE p."ownerId" = %s AND p.is_active = TRUE' if owner_id else "WHERE p.is_active = TRUE"
         params = (owner_id,) if owner_id else ()
 
         cursor.execute(f'SELECT COUNT(*) as total FROM "Product" p {owner_filter};', params)
@@ -18,7 +18,7 @@ def generate_morning_briefing(owner_id: str = None):
         cursor.execute(f"""
             SELECT p.name, SUM(b.quantity) as stock
             FROM "Product" p
-            JOIN "Batch" b ON p.id = b."productId"
+            JOIN "Batch" b ON p.id = b."productId" AND b.is_active = TRUE
             {owner_filter}
             GROUP BY p.name, p."minStockLevel"
             HAVING SUM(b.quantity) <= p."minStockLevel";
@@ -28,7 +28,7 @@ def generate_morning_briefing(owner_id: str = None):
         cursor.execute(f"""
             SELECT p.name, b."batchNumber", b."expiryDate", b.quantity
             FROM "Product" p
-            JOIN "Batch" b ON p.id = b."productId"
+            JOIN "Batch" b ON p.id = b."productId" AND b.is_active = TRUE
             {owner_filter}
             {"AND " if owner_filter else "WHERE "} b."expiryDate" <= CURRENT_DATE + INTERVAL '90 days'
             ORDER BY b."expiryDate" ASC;

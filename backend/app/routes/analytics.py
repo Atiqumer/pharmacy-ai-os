@@ -30,7 +30,7 @@ async def get_reorder_suggestions(request: Request, user: dict = Depends(get_cur
                           COALESCE(SUM(b.quantity), 0) AS current_stock
                    FROM "Product" p
                    LEFT JOIN "Batch" b ON b."productId" = p.id AND b."ownerId" = %s
-                   WHERE p."ownerId" = %s
+                   WHERE p."ownerId" = %s AND p.is_active = TRUE
                    GROUP BY p.id
                )
                SELECT s.id, s.name, s."genericName", s."minStockLevel", s.current_stock,

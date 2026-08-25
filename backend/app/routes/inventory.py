@@ -8,7 +8,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Literal, Optional
 from uuid import UUID
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from app.database import get_db_connection
 from app.services.auth import get_current_user
 
@@ -46,6 +46,40 @@ class StockAdjustment(BaseModel):
         return value
 
 
+class ProductUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    generic_name: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    category: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    min_stock_level: Optional[int] = Field(default=None, ge=0)
+    sku: Optional[str] = Field(default=None, max_length=100)
+    barcode: Optional[str] = Field(default=None, max_length=100)
+    manufacturer: Optional[str] = Field(default=None, max_length=255)
+    strength: Optional[str] = Field(default=None, max_length=100)
+    dosage_form: Optional[str] = Field(default=None, max_length=100)
+    is_active: Optional[bool] = None
+
+    @model_validator(mode="after")
+    def at_least_one_field(self):
+        if not self.model_fields_set:
+            raise ValueError("At least one product field must be supplied")
+        return self
+
+
+class BatchUpdate(BaseModel):
+    batch_number: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    supplier_id: Optional[UUID] = None
+    cost_price: Optional[Decimal] = Field(default=None, ge=0, max_digits=12, decimal_places=2)
+    retail_price: Optional[Decimal] = Field(default=None, ge=0, max_digits=12, decimal_places=2)
+    expiry_date: Optional[date] = None
+    is_active: Optional[bool] = None
+
+    @model_validator(mode="after")
+    def at_least_one_field(self):
+        if not self.model_fields_set:
+            raise ValueError("At least one batch field must be supplied")
+        return self
+
+
 @router.post("/items", status_code=201)
 @limiter.limit("30/minute")
 async def create_inventory_item(
@@ -63,7 +97,9 @@ async def create_inventory_item(
                ON CONFLICT ("ownerId", name) DO UPDATE SET
                  "genericName" = EXCLUDED."genericName",
                  category = EXCLUDED.category,
-                 "minStockLevel" = EXCLUDED."minStockLevel"
+                 "minStockLevel" = EXCLUDED."minStockLevel",
+                 is_active = TRUE,
+                 updated_at = NOW()
                RETURNING id;""",
             (
                 item.product_name.strip(),
@@ -200,6 +236,163 @@ async def adjust_batch_stock(
         conn.close()
 
 
+@router.patch("/products/{product_id}")
+@limiter.limit("30/minute")
+async def update_product(
+    request: Request,
+    product_id: UUID,
+    update: ProductUpdate,
+    user: dict = Depends(get_current_user),
+):
+    owner_id = user["user_id"]
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            'SELECT id, is_active FROM "Product" WHERE id = %s AND "ownerId" = %s FOR UPDATE;',
+            (str(product_id), owner_id),
+        )
+        product = cursor.fetchone()
+        if not product:
+            raise HTTPException(status_code=404, detail="Product not found")
+        if update.is_active is False:
+            cursor.execute(
+                'SELECT COALESCE(SUM(quantity), 0) AS stock FROM "Batch" WHERE "productId" = %s AND "ownerId" = %s;',
+                (str(product_id), owner_id),
+            )
+            if cursor.fetchone()["stock"] > 0:
+                raise HTTPException(status_code=409, detail="Reduce this product's stock to zero before archiving it")
+            cursor.execute(
+                """SELECT 1 FROM "PurchaseOrderItem" poi
+                   JOIN "PurchaseOrder" po ON po.id = poi."purchaseOrderId"
+                   WHERE poi."productId" = %s AND po."ownerId" = %s
+                     AND po.status IN ('draft','ordered','partially_received') LIMIT 1;""",
+                (str(product_id), owner_id),
+            )
+            if cursor.fetchone():
+                raise HTTPException(status_code=409, detail="Cancel or complete open purchase orders before archiving this product")
+
+        fields = {
+            "name": update.name.strip() if update.name is not None else None,
+            '"genericName"': update.generic_name.strip() if update.generic_name is not None else None,
+            "category": update.category.strip() if update.category is not None else None,
+            '"minStockLevel"': update.min_stock_level,
+            "sku": update.sku.strip() or None if update.sku is not None else None,
+            "barcode": update.barcode.strip() or None if update.barcode is not None else None,
+            "manufacturer": update.manufacturer.strip() or None if update.manufacturer is not None else None,
+            "strength": update.strength.strip() or None if update.strength is not None else None,
+            "dosage_form": update.dosage_form.strip() or None if update.dosage_form is not None else None,
+            "is_active": update.is_active,
+        }
+        requested = {
+            "name": "name", "generic_name": '"genericName"', "category": "category",
+            "min_stock_level": '"minStockLevel"', "sku": "sku", "barcode": "barcode",
+            "manufacturer": "manufacturer", "strength": "strength",
+            "dosage_form": "dosage_form", "is_active": "is_active",
+        }
+        columns = [requested[name] for name in update.model_fields_set]
+        values = [fields[column] for column in columns]
+        assignments = ", ".join(f"{column} = %s" for column in columns)
+        cursor.execute(
+            f'''UPDATE "Product" SET {assignments}, updated_at = NOW()
+                WHERE id = %s AND "ownerId" = %s
+                RETURNING id, name, "genericName", category, "minStockLevel", sku,
+                          barcode, manufacturer, strength, dosage_form, is_active, updated_at;''',
+            (*values, str(product_id), owner_id),
+        )
+        row = cursor.fetchone()
+        conn.commit()
+        return {
+            "id": str(row["id"]), "name": row["name"], "generic_name": row["genericName"],
+            "category": row["category"], "min_stock_level": row["minStockLevel"],
+            "sku": row["sku"], "barcode": row["barcode"], "manufacturer": row["manufacturer"],
+            "strength": row["strength"], "dosage_form": row["dosage_form"],
+            "is_active": row["is_active"], "updated_at": str(row["updated_at"]),
+        }
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as exc:
+        conn.rollback()
+        if getattr(exc, "pgcode", None) == "23505":
+            raise HTTPException(status_code=409, detail="Product name, SKU, or barcode already exists") from exc
+        raise HTTPException(status_code=500, detail="Product could not be updated") from exc
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@router.patch("/items/{batch_id}")
+@limiter.limit("30/minute")
+async def update_batch(
+    request: Request,
+    batch_id: UUID,
+    update: BatchUpdate,
+    user: dict = Depends(get_current_user),
+):
+    owner_id = user["user_id"]
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            'SELECT id, quantity FROM "Batch" WHERE id = %s AND "ownerId" = %s FOR UPDATE;',
+            (str(batch_id), owner_id),
+        )
+        batch = cursor.fetchone()
+        if not batch:
+            raise HTTPException(status_code=404, detail="Inventory batch not found")
+        if update.is_active is False and batch["quantity"] > 0:
+            raise HTTPException(status_code=409, detail="Reduce this batch's stock to zero before archiving it")
+        if "supplier_id" in update.model_fields_set and update.supplier_id is not None:
+            cursor.execute(
+                'SELECT id FROM "Supplier" WHERE id = %s AND "ownerId" = %s AND is_active = TRUE;',
+                (str(update.supplier_id), owner_id),
+            )
+            if not cursor.fetchone():
+                raise HTTPException(status_code=404, detail="Active supplier not found")
+
+        values_by_field = {
+            "batch_number": update.batch_number.strip() if update.batch_number is not None else None,
+            "supplier_id": str(update.supplier_id) if update.supplier_id else None,
+            "cost_price": update.cost_price, "retail_price": update.retail_price,
+            "expiry_date": update.expiry_date, "is_active": update.is_active,
+        }
+        columns = {
+            "batch_number": '"batchNumber"', "supplier_id": '"supplierId"',
+            "cost_price": '"costPrice"', "retail_price": '"retailPrice"',
+            "expiry_date": '"expiryDate"', "is_active": "is_active",
+        }
+        requested = list(update.model_fields_set)
+        assignments = ", ".join(f"{columns[name]} = %s" for name in requested)
+        cursor.execute(
+            f'''UPDATE "Batch" SET {assignments}, updated_at = NOW()
+                WHERE id = %s AND "ownerId" = %s
+                RETURNING id, "batchNumber", "supplierId", "costPrice", "retailPrice",
+                          "expiryDate", quantity, is_active, updated_at;''',
+            (*(values_by_field[name] for name in requested), str(batch_id), owner_id),
+        )
+        row = cursor.fetchone()
+        conn.commit()
+        return {
+            "id": str(row["id"]), "batch_number": row["batchNumber"],
+            "supplier_id": str(row["supplierId"]) if row["supplierId"] else None,
+            "cost_price": float(row["costPrice"]), "retail_price": float(row["retailPrice"]),
+            "expiry_date": str(row["expiryDate"]), "quantity": row["quantity"],
+            "is_active": row["is_active"], "updated_at": str(row["updated_at"]),
+        }
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as exc:
+        conn.rollback()
+        if getattr(exc, "pgcode", None) == "23505":
+            raise HTTPException(status_code=409, detail="This batch number already exists for the product") from exc
+        raise HTTPException(status_code=500, detail="Batch could not be updated") from exc
+    finally:
+        cursor.close()
+        conn.close()
+
+
 @router.get("/movements")
 @limiter.limit("30/minute")
 async def list_stock_movements(
@@ -281,8 +474,8 @@ async def get_inventory_summary(
                 SELECT p.id, p."minStockLevel", COALESCE(SUM(b.quantity), 0) AS stock
                 FROM "Product" p
                 LEFT JOIN "Batch" b
-                  ON b."productId" = p.id AND b."ownerId" = %s
-                WHERE p."ownerId" = %s
+                  ON b."productId" = p.id AND b."ownerId" = %s AND b.is_active = TRUE
+                WHERE p."ownerId" = %s AND p.is_active = TRUE
                 GROUP BY p.id, p."minStockLevel"
             ), batch_metrics AS (
                 SELECT
@@ -295,7 +488,7 @@ async def get_inventory_summary(
                     ) AS expiring_batches,
                     COUNT(*) FILTER (WHERE "expiryDate" < CURRENT_DATE) AS expired_batches
                 FROM "Batch"
-                WHERE "ownerId" = %s
+                WHERE "ownerId" = %s AND is_active = TRUE
             )
             SELECT
                 (SELECT COUNT(*) FROM product_stock) AS total_products,
@@ -334,11 +527,15 @@ async def list_inventory_items(
     search: str = Query("", max_length=100),
     stock_status: str = Query("all", pattern="^(all|low_stock|in_stock)$"),
     expiry_status: str = Query("all", pattern="^(all|expiring|expired|valid)$"),
+    include_inactive: bool = False,
     user: dict = Depends(get_current_user),
 ):
     owner_id = user["user_id"]
     conditions = []
     params = [owner_id, owner_id]
+
+    if not include_inactive:
+        conditions.append("product_is_active = TRUE AND batch_is_active = TRUE")
 
     if search.strip():
         conditions.append(
@@ -374,11 +571,19 @@ async def list_inventory_items(
                     p."genericName",
                     p.category,
                     p."minStockLevel",
+                    p.sku,
+                    p.barcode,
+                    p.manufacturer,
+                    p.strength,
+                    p.dosage_form,
+                    p.is_active AS product_is_active,
                     b."batchNumber",
                     b.quantity,
                     b."costPrice",
                     b."retailPrice",
                     b."expiryDate",
+                    b."supplierId",
+                    b.is_active AS batch_is_active,
                     SUM(b.quantity) OVER (PARTITION BY p.id) AS total_stock
                 FROM "Batch" b
                 JOIN "Product" p ON p.id = b."productId" AND p."ownerId" = %s
@@ -406,9 +611,17 @@ async def list_inventory_items(
                     "quantity": row["quantity"],
                     "total_stock": row["total_stock"],
                     "min_stock_level": row["minStockLevel"],
+                    "sku": row["sku"],
+                    "barcode": row["barcode"],
+                    "manufacturer": row["manufacturer"],
+                    "strength": row["strength"],
+                    "dosage_form": row["dosage_form"],
                     "cost_price": float(row["costPrice"]),
                     "retail_price": float(row["retailPrice"]),
                     "expiry_date": str(row["expiryDate"]),
+                    "supplier_id": str(row["supplierId"]) if row["supplierId"] else None,
+                    "product_is_active": row["product_is_active"],
+                    "batch_is_active": row["batch_is_active"],
                 }
                 for row in rows
             ],
@@ -528,7 +741,9 @@ async def upload_inventory_csv(
                    ON CONFLICT ("ownerId", name) DO UPDATE SET
                      "genericName" = EXCLUDED."genericName",
                      category = EXCLUDED.category,
-                     "minStockLevel" = EXCLUDED."minStockLevel"
+                     "minStockLevel" = EXCLUDED."minStockLevel",
+                     is_active = TRUE,
+                     updated_at = NOW()
                    RETURNING id;""",
                 (row["product_name"], row["generic_name"], row["category"], row["min_stock_level"], owner_id),
             )

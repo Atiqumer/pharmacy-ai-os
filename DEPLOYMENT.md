@@ -66,7 +66,7 @@ Remove-Item Env:DATABASE_URL
 Expected current revision:
 
 ```text
-20260825_0001 (head)
+20260825_0002 (head)
 ```
 
 If the migration fails, do not deploy or manually create random tables. Check that:
@@ -140,7 +140,7 @@ https://YOUR-BACKEND.vercel.app/health/ready
 https://YOUR-BACKEND.vercel.app/docs
 ```
 
-`/health/live` should return `{"status":"alive"}`. `/health/ready` should return status `ready` and migration `20260825_0001`.
+`/health/live` should return `{"status":"alive"}`. `/health/ready` should return status `ready` and migration `20260825_0002`.
 
 If `/health/ready` returns `503`, inspect **Vercel > Project > Logs**. The usual causes are an incorrect pooler URL, incorrect password, missing `sslmode=require`, or migrations that were not applied.
 

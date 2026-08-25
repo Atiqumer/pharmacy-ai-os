@@ -35,6 +35,10 @@ class PurchaseOrderCreate(BaseModel):
         return self
 
 
+class PurchaseOrderUpdate(PurchaseOrderCreate):
+    pass
+
+
 class ReceiptLine(BaseModel):
     purchase_order_item_id: UUID
     quantity: int = Field(gt=0)
@@ -76,7 +80,7 @@ async def create_purchase_order(
 
         product_ids = [str(line.product_id) for line in order.items]
         cursor.execute(
-            'SELECT id FROM "Product" WHERE "ownerId" = %s AND id = ANY(%s::uuid[]);',
+            'SELECT id FROM "Product" WHERE "ownerId" = %s AND is_active = TRUE AND id = ANY(%s::uuid[]);',
             (owner_id, product_ids),
         )
         found_products = {str(row["id"]) for row in cursor.fetchall()}
@@ -179,6 +183,71 @@ async def list_purchase_orders(
         conn.close()
 
 
+@router.put("/orders/{order_id}")
+@limiter.limit("20/minute")
+async def update_purchase_order(
+    request: Request,
+    order_id: UUID,
+    order: PurchaseOrderUpdate,
+    user: dict = Depends(get_current_user),
+):
+    owner_id = user["user_id"]
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            'SELECT id FROM "PurchaseOrder" WHERE id = %s AND "ownerId" = %s AND status = \'draft\' FOR UPDATE;',
+            (str(order_id), owner_id),
+        )
+        if not cursor.fetchone():
+            raise HTTPException(status_code=409, detail="Only a draft purchase order can be edited")
+        cursor.execute(
+            'SELECT id FROM "Supplier" WHERE id = %s AND "ownerId" = %s AND is_active = TRUE;',
+            (str(order.supplier_id), owner_id),
+        )
+        if not cursor.fetchone():
+            raise HTTPException(status_code=404, detail="Active supplier not found")
+        product_ids = [str(line.product_id) for line in order.items]
+        cursor.execute(
+            'SELECT id FROM "Product" WHERE "ownerId" = %s AND is_active = TRUE AND id = ANY(%s::uuid[]);',
+            (owner_id, product_ids),
+        )
+        if {str(row["id"]) for row in cursor.fetchall()} != set(product_ids):
+            raise HTTPException(status_code=400, detail="One or more active products do not belong to this pharmacy")
+
+        total_cost = sum(line.cost_price * line.quantity for line in order.items)
+        cursor.execute(
+            """UPDATE "PurchaseOrder"
+               SET "supplierId" = %s, "expectedDate" = %s, notes = %s,
+                   "totalCost" = %s, updated_at = NOW()
+               WHERE id = %s AND "ownerId" = %s;""",
+            (
+                str(order.supplier_id), order.expected_date,
+                order.notes.strip() if order.notes else None, total_cost,
+                str(order_id), owner_id,
+            ),
+        )
+        cursor.execute('DELETE FROM "PurchaseOrderItem" WHERE "purchaseOrderId" = %s;', (str(order_id),))
+        for line in order.items:
+            cursor.execute(
+                """INSERT INTO "PurchaseOrderItem" (
+                       id, "purchaseOrderId", "productId", "orderedQuantity", "costPrice"
+                   ) VALUES (gen_random_uuid(), %s, %s, %s, %s);""",
+                (str(order_id), str(line.product_id), line.quantity, line.cost_price),
+            )
+        conn.commit()
+        return {"message": "Draft purchase order updated", "id": str(order_id), "total_cost": float(total_cost)}
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as exc:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail="Purchase order could not be updated") from exc
+    finally:
+        cursor.close()
+        conn.close()
+
+
 @router.get("/orders/{order_id}")
 @limiter.limit("30/minute")
 async def get_purchase_order(
@@ -247,6 +316,44 @@ async def submit_purchase_order(
             raise HTTPException(status_code=409, detail="Only a draft purchase order can be submitted")
         conn.commit()
         return {"message": "Purchase order submitted", "order_number": row["orderNumber"], "status": "ordered"}
+    except HTTPException:
+        conn.rollback()
+        raise
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@router.post("/orders/{order_id}/cancel")
+@limiter.limit("20/minute")
+async def cancel_purchase_order(
+    request: Request,
+    order_id: UUID,
+    user: dict = Depends(get_current_user),
+):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            """UPDATE "PurchaseOrder" po
+               SET status = 'cancelled', updated_at = NOW()
+               WHERE po.id = %s AND po."ownerId" = %s
+                 AND po.status IN ('draft', 'ordered')
+                 AND NOT EXISTS (
+                     SELECT 1 FROM "PurchaseOrderItem" poi
+                     WHERE poi."purchaseOrderId" = po.id AND poi."receivedQuantity" > 0
+                 )
+               RETURNING po."orderNumber";""",
+            (str(order_id), user["user_id"]),
+        )
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(
+                status_code=409,
+                detail="Only an unreceived draft or ordered purchase order can be cancelled",
+            )
+        conn.commit()
+        return {"message": "Purchase order cancelled", "order_number": row["orderNumber"], "status": "cancelled"}
     except HTTPException:
         conn.rollback()
         raise

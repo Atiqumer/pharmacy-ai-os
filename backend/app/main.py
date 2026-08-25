@@ -6,7 +6,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-from app.routes import inventory, query, analytics, auth, admin, suppliers, purchasing
+from app.routes import inventory, query, analytics, auth, admin, suppliers, purchasing, sales, reports
 from app.middleware.logging import log_requests
 
 logger = logging.getLogger("rxos")
@@ -23,7 +23,7 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+ALLOWED_ORIGINS = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",") if origin.strip()]
 
 app.add_middleware(
     CORSMiddleware,
@@ -36,7 +36,12 @@ app.add_middleware(
 
 @app.middleware("http")
 async def request_logging_middleware(request: Request, call_next):
-    return await log_requests(request, call_next)
+    response = await log_requests(request, call_next)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), geolocation=(), payment=()"
+    return response
 
 
 app.include_router(auth.router)
@@ -44,6 +49,8 @@ app.include_router(admin.router)
 app.include_router(inventory.router)
 app.include_router(suppliers.router)
 app.include_router(purchasing.router)
+app.include_router(sales.router)
+app.include_router(reports.router)
 app.include_router(analytics.router)
 app.include_router(query.router)
 

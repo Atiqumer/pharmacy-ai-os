@@ -10,7 +10,7 @@ A full-stack application that combines a Python/FastAPI backend with a Next.js/R
 ### Backend
 - **Framework:** FastAPI (Python 3.13)
 - **Database:** PostgreSQL 16 with `psycopg2`
-- **AI Engine:** Groq API (Llama 3.3 70B Versatile)
+- **AI Engine:** Groq API (`openai/gpt-oss-20b` by default)
 - **Data Processing:** Pandas
 - **Auth:** JWT (PyJWT) with PostgreSQL `pgcrypto` password hashing
 - **RBAC:** Role-based access control (admin/user)
@@ -162,7 +162,7 @@ pharmacy/
 
 ### 5. AI Morning Briefing
 - Pulls SKU count, low-stock items, items expiring within 90 days
-- Owner-scoped data sent to Llama 3.3 via Groq
+- Owner-scoped operational metrics sent to the configured Groq production model
 - Markdown briefing rendered with react-markdown
 
 ### 6. Conversational Database Explorer
@@ -261,7 +261,7 @@ npm run dev
 
 ## Testing
 
-**43 unit tests passing locally**, plus **2 PostgreSQL integration tests in CI**.
+**55 backend tests passing locally**, plus **2 PostgreSQL integration tests in CI**.
 
 | Class | Tests | Coverage |
 |-------|-------|----------|
@@ -292,6 +292,6 @@ GitHub Actions (`.github/workflows/ci.yml`):
 ## Known Gaps / Next Steps
 1. No email verification on signup
 2. No frontend tests (Jest/Playwright)
-3. No supplier edit UI, printable purchasing documents, sales/POS, or returns workflow yet
-4. Production hosting, backups, and monitoring must be provisioned using `DEPLOYMENT.md`
+3. Pilot sales and returns are implemented; printable purchasing and sales documents remain
+4. Production hosting is deployed, while automated backups and monitoring still require provisioning
 5. Existing pre-Alembic databases require a reviewed adoption migration before stamping

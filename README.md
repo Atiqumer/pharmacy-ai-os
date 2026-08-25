@@ -22,14 +22,19 @@ Implemented:
 - Hashed password-reset tokens with SMTP delivery and session invalidation
 - AI morning briefing through Groq
 - Tenant-validated, read-only natural-language inventory queries
+- Editable product and batch details with safe zero-stock archival
+- Pilot sales checkout with FEFO batch allocation, discounts, and exact-batch returns
+- Sales and inventory CSV exports plus 30-day operational reporting
+- Editable/cancellable draft purchasing and supplier editing
 - Backend unit tests and GitHub Actions CI
 
-Not yet production-ready:
+Not yet public-market-ready:
 
 - SMTP must be configured before production password reset can operate
-- No real-database integration tests
-- No product edit UI, printable purchase documents, or sales/POS
-- No cloud deployment, backups, monitoring, or alert delivery
+- The pilot uses one account per pharmacy; shared staff/branch organizations are not implemented
+- Purchase orders and receipts are not yet printable
+- Automated backups, error monitoring, and alert delivery still require paid production services
+- Patient, prescription, payment-card, and regulated medicine data are outside the pilot scope
 
 ## Local setup with Docker
 
@@ -76,7 +81,7 @@ npm run lint -- --max-warnings=0
 npm run build
 ```
 
-Current verified baseline: 43 backend unit tests pass, two PostgreSQL integration tests run in CI, ESLint passes with zero warnings, and the Next.js production build succeeds.
+Current verified baseline: 55 backend tests pass locally, two PostgreSQL integration tests run in CI, ESLint passes with zero warnings, and the Next.js production build succeeds.
 
 ## Inventory CSV format
 
@@ -92,4 +97,4 @@ See `mock_inventory.csv` for an example.
 
 ## Product direction
 
-See `DEPLOYMENT.md` for the production migration, SMTP, health-check, backup, and deployment checklist. The next milestone is staging deployment and real-pharmacy workflow validation, followed by printable purchasing documents and sales/POS.
+See `DEPLOYMENT.md` for migration, SMTP, health-check, backup, and deployment guidance. The next milestone is controlled validation with one or two pharmacy testers, followed by the dashboard and UX redesign.

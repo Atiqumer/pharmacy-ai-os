@@ -34,6 +34,7 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
   const [error, setError] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [adjustingItem, setAdjustingItem] = useState(null);
+  const [editingItem, setEditingItem] = useState(null);
   const [showMovements, setShowMovements] = useState(false);
   const [movements, setMovements] = useState([]);
   const [movementTotal, setMovementTotal] = useState(0);
@@ -133,6 +134,63 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
       setAdjustingItem(null);
       await loadInventory(page);
       if (showMovements) await loadMovements();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const updateItem = async (event) => {
+    event.preventDefault();
+    setActionLoading(true);
+    setError('');
+    const form = new FormData(event.currentTarget);
+    const productPayload = {
+      name: form.get('name'), generic_name: form.get('generic_name'), category: form.get('category'),
+      min_stock_level: Number(form.get('min_stock_level')), sku: form.get('sku'),
+      barcode: form.get('barcode'), manufacturer: form.get('manufacturer'),
+      strength: form.get('strength'), dosage_form: form.get('dosage_form'),
+    };
+    const batchPayload = {
+      batch_number: form.get('batch_number'), cost_price: form.get('cost_price'),
+      retail_price: form.get('retail_price'), expiry_date: form.get('expiry_date'),
+    };
+    try {
+      const productResponse = await authFetch(`${API_URL}/inventory/products/${editingItem.product_id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(productPayload),
+      });
+      const productData = await productResponse.json();
+      if (!productResponse.ok) throw new Error(getApiErrorMessage(productData, 'Product could not be updated'));
+      const batchResponse = await authFetch(`${API_URL}/inventory/items/${editingItem.batch_id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(batchPayload),
+      });
+      const batchData = await batchResponse.json();
+      if (!batchResponse.ok) throw new Error(getApiErrorMessage(batchData, 'Batch could not be updated'));
+      setEditingItem(null);
+      await loadInventory(page);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const archiveItem = async (kind, item) => {
+    const label = kind === 'product' ? item.name : `${item.name} batch ${item.batch_number}`;
+    if (!confirm(`Archive ${label}? It will be hidden from active inventory.`)) return;
+    setActionLoading(true);
+    setError('');
+    const url = kind === 'product'
+      ? `${API_URL}/inventory/products/${item.product_id}`
+      : `${API_URL}/inventory/items/${item.batch_id}`;
+    try {
+      const response = await authFetch(url, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_active: false }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(getApiErrorMessage(data, `${kind} could not be archived`));
+      await loadInventory(1);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -280,10 +338,13 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
                       <p>{money.format(item.cost_price)}</p>
                       <p className="text-emerald-300">{money.format(item.retail_price)}</p>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 space-x-2 whitespace-nowrap">
                       <button onClick={() => setAdjustingItem(item)} className="px-3 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 rounded text-xs">
                         Adjust
                       </button>
+                      <button onClick={() => setEditingItem(item)} className="px-3 py-1.5 bg-slate-700/50 hover:bg-slate-700 text-slate-300 rounded text-xs">Edit</button>
+                      {item.quantity === 0 && <button onClick={() => archiveItem('batch', item)} className="px-2 py-1.5 text-red-300 text-xs">Archive batch</button>}
+                      {item.total_stock === 0 && <button onClick={() => archiveItem('product', item)} className="px-2 py-1.5 text-red-300 text-xs">Archive product</button>}
                     </td>
                   </tr>
                 );
@@ -388,6 +449,30 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
               <button type="button" onClick={() => setAdjustingItem(null)} className="px-4 py-2 bg-slate-800 rounded-md text-sm">Cancel</button>
               <button disabled={actionLoading} className="px-4 py-2 bg-cyan-600 rounded-md text-sm font-medium disabled:opacity-50">{actionLoading ? 'Saving…' : 'Save adjustment'}</button>
             </div>
+          </form>
+        </div>
+      )}
+
+      {editingItem && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <form onSubmit={updateItem} className="w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-slate-900 border border-slate-700 rounded-xl p-6 space-y-5">
+            <div className="flex justify-between"><div><h3 className="text-lg font-semibold">Edit product and batch</h3><p className="text-xs text-slate-500">Stock quantity can only be changed through an audited adjustment or sale.</p></div><button type="button" onClick={() => setEditingItem(null)} className="text-slate-400">Close</button></div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <label className="text-sm text-slate-400">Product name<input required name="name" defaultValue={editingItem.name} className="form-input" /></label>
+              <label className="text-sm text-slate-400">Generic name<input required name="generic_name" defaultValue={editingItem.generic_name} className="form-input" /></label>
+              <label className="text-sm text-slate-400">Category<input required name="category" defaultValue={editingItem.category} className="form-input" /></label>
+              <label className="text-sm text-slate-400">Minimum stock<input required type="number" min="0" name="min_stock_level" defaultValue={editingItem.min_stock_level} className="form-input" /></label>
+              <label className="text-sm text-slate-400">SKU<input name="sku" defaultValue={editingItem.sku || ''} className="form-input" /></label>
+              <label className="text-sm text-slate-400">Barcode<input name="barcode" defaultValue={editingItem.barcode || ''} className="form-input" /></label>
+              <label className="text-sm text-slate-400">Manufacturer<input name="manufacturer" defaultValue={editingItem.manufacturer || ''} className="form-input" /></label>
+              <label className="text-sm text-slate-400">Strength<input name="strength" defaultValue={editingItem.strength || ''} className="form-input" /></label>
+              <label className="text-sm text-slate-400">Dosage form<input name="dosage_form" defaultValue={editingItem.dosage_form || ''} className="form-input" /></label>
+              <label className="text-sm text-slate-400">Batch number<input required name="batch_number" defaultValue={editingItem.batch_number} className="form-input" /></label>
+              <label className="text-sm text-slate-400">Expiry date<input required type="date" name="expiry_date" defaultValue={editingItem.expiry_date} className="form-input" /></label>
+              <label className="text-sm text-slate-400">Cost price<input required type="number" min="0" step="0.01" name="cost_price" defaultValue={editingItem.cost_price} className="form-input" /></label>
+              <label className="text-sm text-slate-400">Retail price<input required type="number" min="0" step="0.01" name="retail_price" defaultValue={editingItem.retail_price} className="form-input" /></label>
+            </div>
+            <div className="flex justify-end gap-2"><button type="button" onClick={() => setEditingItem(null)} className="px-4 py-2 bg-slate-800 rounded-md text-sm">Cancel</button><button disabled={actionLoading} className="px-4 py-2 bg-emerald-600 rounded-md text-sm font-medium disabled:opacity-50">{actionLoading ? 'Saving…' : 'Save changes'}</button></div>
           </form>
         </div>
       )}

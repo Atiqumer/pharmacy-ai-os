@@ -85,8 +85,8 @@ export default function AdminPage() {
     }
   };
 
-  const deleteUser = async (userId) => {
-    if (!confirm('Are you sure you want to delete this user?')) return;
+  const archiveUser = async (userId) => {
+    if (!confirm('Archive this user? Their access will be disabled and business records will be preserved.')) return;
     setActionLoading(userId);
     try {
       await authFetch(`${API_URL}/admin/users/${userId}`, { method: 'DELETE' });
@@ -166,11 +166,11 @@ export default function AdminPage() {
                         {u.is_active ? 'Deactivate' : 'Activate'}
                       </button>
                       <button
-                        onClick={() => deleteUser(u.id)}
+                        onClick={() => archiveUser(u.id)}
                         disabled={actionLoading === u.id || u.id === user.id}
                         className="text-xs px-2 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition-colors disabled:opacity-50"
                       >
-                        Delete
+                        Archive
                       </button>
                     </td>
                   </tr>

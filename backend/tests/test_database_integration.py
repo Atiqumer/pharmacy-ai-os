@@ -20,7 +20,7 @@ def database_connection():
 def test_migrations_created_expected_schema(database_connection):
     cursor = database_connection.cursor()
     cursor.execute("SELECT version_num FROM alembic_version;")
-    assert cursor.fetchone()[0] == "20260825_0001"
+    assert cursor.fetchone()[0] == "20260825_0002"
     cursor.execute(
         """SELECT table_name FROM information_schema.tables
            WHERE table_schema = 'public';"""
@@ -29,7 +29,8 @@ def test_migrations_created_expected_schema(database_connection):
     assert {
         "User", "Product", "Supplier", "Batch", "StockMovement",
         "PurchaseOrder", "PurchaseOrderItem", "GoodsReceipt",
-        "GoodsReceiptItem", "PasswordReset",
+        "GoodsReceiptItem", "PasswordReset", "Sale", "SaleItem",
+        "SalesReturn", "SalesReturnItem",
     }.issubset(tables)
     cursor.close()
 

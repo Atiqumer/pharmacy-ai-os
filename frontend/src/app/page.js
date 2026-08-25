@@ -158,6 +158,9 @@ export default function Home() {
             <p className="text-slate-400 mt-2">Intelligent operations, inventory prediction, and risk mitigation.</p>
           </div>
           <div className="flex items-center gap-4">
+            <Link href="/sales" className="px-3 py-1 text-sm text-emerald-300 border border-emerald-500/30 rounded-md hover:bg-emerald-500/10">
+              Sales
+            </Link>
             <Link href="/purchasing" className="px-3 py-1 text-sm text-cyan-300 border border-cyan-500/30 rounded-md hover:bg-cyan-500/10">
               Purchasing
             </Link>
