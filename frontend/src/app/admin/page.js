@@ -114,7 +114,7 @@ export default function AdminPage() {
   }
 
   return (
-    <DashboardSidebar user={user} isAdmin={isAdmin} onLogout={logout}>
+    <DashboardSidebar user={user} isAdmin={isAdmin} onLogout={logout} authFetch={authFetch}>
     <main className="app-content min-h-screen px-4 py-6 md:px-7 md:py-7">
       <div className="mx-auto max-w-[1200px] space-y-7">
         <header className="border-b border-slate-200 pb-6">

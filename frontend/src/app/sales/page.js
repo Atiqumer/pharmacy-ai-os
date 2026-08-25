@@ -176,7 +176,7 @@ export default function SalesPage() {
   if (authLoading || !user) return <main className="grid min-h-screen place-items-center bg-slate-100 text-sm text-slate-500">Loading…</main>;
 
   return (
-    <DashboardSidebar user={user} isAdmin={isAdmin} onLogout={logout}>
+    <DashboardSidebar user={user} isAdmin={isAdmin} onLogout={logout} authFetch={authFetch}>
     <main className="app-content min-h-screen px-4 py-6 md:px-7 md:py-7">
       <div className="mx-auto max-w-[1440px] space-y-7">
         <header className="flex flex-col justify-between gap-4 border-b border-slate-200 pb-6 sm:flex-row">

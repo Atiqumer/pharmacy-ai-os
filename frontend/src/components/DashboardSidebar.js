@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import AppIcon from './AppIcon';
+import NotificationCenter from './NotificationCenter';
+import PharmacyOnboarding from './PharmacyOnboarding';
 
 const navItems = [
   { label: 'Overview', href: '/', icon: 'dashboard' },
@@ -16,9 +18,10 @@ const pageDetails = {
   '/sales': { section: 'Operations', title: 'Sales' },
   '/purchasing': { section: 'Operations', title: 'Purchasing' },
   '/admin': { section: 'Administration', title: 'Team & access' },
+  '/settings': { section: 'Workspace', title: 'Pharmacy settings' },
 };
 
-export default function DashboardSidebar({ user, isAdmin, onLogout, children }) {
+export default function DashboardSidebar({ user, isAdmin, onLogout, authFetch, children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
@@ -112,6 +115,7 @@ export default function DashboardSidebar({ user, isAdmin, onLogout, children }) 
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 sm:flex"><span className="h-2 w-2 rounded-full bg-emerald-500 ring-4 ring-emerald-100" /> Pilot workspace</div>
+            <NotificationCenter authFetch={authFetch} />
             <div className="h-7 w-px bg-slate-200" />
             <div className="flex items-center gap-2.5">
               <Avatar initials={initials} small />
@@ -121,6 +125,7 @@ export default function DashboardSidebar({ user, isAdmin, onLogout, children }) 
         </header>
         {children}
       </div>
+      <PharmacyOnboarding authFetch={authFetch} />
     </div>
   );
 }
@@ -132,15 +137,16 @@ function SidebarNavigation({ pathname, isAdmin, collapsed = false, onNavigate })
       <nav className={`space-y-1 ${collapsed ? 'px-2.5' : 'px-3'}`} aria-label="Primary navigation">
         {navItems.map((item) => <NavItem key={item.href} item={item} active={item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)} collapsed={collapsed} onNavigate={onNavigate} />)}
       </nav>
-      {isAdmin && (
-        <>
-          <div className={`my-4 border-t border-slate-200 ${collapsed ? 'mx-3' : 'mx-4'}`} />
-          {!collapsed && <p className="mb-2 px-5 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Manage</p>}
-          <nav className={collapsed ? 'px-2.5' : 'px-3'} aria-label="Administration">
+      <>
+        <div className={`my-4 border-t border-slate-200 ${collapsed ? 'mx-3' : 'mx-4'}`} />
+        {!collapsed && <p className="mb-2 px-5 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Manage</p>}
+        <nav className={`space-y-1 ${collapsed ? 'px-2.5' : 'px-3'}`} aria-label="Workspace settings">
+          <NavItem item={{ label: 'Pharmacy settings', href: '/settings', icon: 'settings' }} active={pathname.startsWith('/settings')} collapsed={collapsed} onNavigate={onNavigate} />
+          {isAdmin && (
             <NavItem item={{ label: 'Team & access', href: '/admin', icon: 'users' }} active={pathname.startsWith('/admin')} collapsed={collapsed} onNavigate={onNavigate} />
-          </nav>
-        </>
-      )}
+          )}
+        </nav>
+      </>
     </div>
   );
 }

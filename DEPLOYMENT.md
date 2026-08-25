@@ -66,7 +66,7 @@ Remove-Item Env:DATABASE_URL
 Expected current revision:
 
 ```text
-20260825_0002 (head)
+20260826_0003 (head)
 ```
 
 If the migration fails, do not deploy or manually create random tables. Check that:
@@ -119,7 +119,7 @@ Important:
 - Include `?sslmode=require`.
 - Do not add spaces around values.
 - `JWT_SECRET` must remain stable. Changing it logs out every user.
-- Start with password-reset delivery disabled. Configure SMTP later using the optional section below.
+- Keep password-reset email delivery disabled for this pilot.
 
 Select **Deploy**. When it completes, copy the production URL, for example:
 
@@ -140,7 +140,7 @@ https://YOUR-BACKEND.vercel.app/health/ready
 https://YOUR-BACKEND.vercel.app/docs
 ```
 
-`/health/live` should return `{"status":"alive"}`. `/health/ready` should return status `ready` and migration `20260825_0002`.
+`/health/live` should return `{"status":"alive"}`. `/health/ready` should return status `ready` and migration `20260826_0003`.
 
 If `/health/ready` returns `503`, inspect **Vercel > Project > Logs**. The usual causes are an incorrect pooler URL, incorrect password, missing `sslmode=require`, or migrations that were not applied.
 
@@ -209,14 +209,16 @@ Test in this order from the permanent Netlify URL:
 
 1. Open the application and confirm there is no browser CORS error.
 2. Create a test account and log in.
-3. Log out and log back in.
-4. Import `mock_inventory.csv` or create a small batch manually.
-5. Verify the inventory dashboard and reorder suggestions.
-6. Make a stock adjustment and confirm the audit ledger entry.
-7. Create a supplier and purchase order.
-8. Receive goods and confirm the stock quantity changes.
-9. Test an AI query and inspect Vercel logs if Groq returns an error.
-10. Confirm that password reset returns a controlled `503` configuration response while delivery is disabled.
+3. Complete the pharmacy onboarding screen and save the workspace profile.
+4. Log out and log back in; confirm onboarding does not repeat.
+5. Import `mock_inventory.csv` or create a small batch manually.
+6. Verify the notification bell shows the expected low-stock or expiry alerts.
+7. Change the alert window in **Pharmacy settings** and confirm the preference persists.
+8. Verify the inventory dashboard and reorder suggestions.
+9. Make a stock adjustment and confirm the audit ledger entry.
+10. Create a supplier and purchase order.
+11. Receive goods and confirm the stock quantity changes.
+12. Test an AI query and inspect Vercel logs if Groq returns an error.
 
 Also recheck:
 
@@ -240,28 +242,9 @@ Never paste the key into a support message, Vercel build log, source file, or an
 
 `GROQ_MODEL` is optional because the backend defaults to `openai/gpt-oss-20b`, a production model available on Groq's Developer plan. Keeping it in Vercel makes future model changes possible without changing source code. Do not select a model marked **Enterprise** for a free Groq project, and avoid preview model IDs because they can disappear without notice.
 
-## 8. Optional SMTP password-reset email
+## 8. Password-reset scope
 
-Leave `PASSWORD_RESET_DELIVERY=disabled` until a real SMTP provider and sender address are ready. Then add these Vercel variables:
-
-```text
-PASSWORD_RESET_DELIVERY=smtp
-SMTP_HOST=YOUR_SMTP_HOST
-SMTP_PORT=587
-SMTP_USERNAME=YOUR_SMTP_USERNAME
-SMTP_PASSWORD=YOUR_SMTP_PASSWORD
-SMTP_FROM_EMAIL=YOUR_VERIFIED_SENDER
-SMTP_USE_SSL=false
-```
-
-For a provider that requires implicit TLS on port `465`, set:
-
-```text
-SMTP_PORT=465
-SMTP_USE_SSL=true
-```
-
-Redeploy Vercel and test password reset with a non-production account. Never expose SMTP credentials through `NEXT_PUBLIC_*` variables or Netlify frontend variables.
+Email password reset is intentionally outside this pilot. Keep `PASSWORD_RESET_DELIVERY=disabled`. Do not add SMTP variables to Vercel or frontend variables to Netlify.
 
 ## 9. Updating the deployed application
 
@@ -283,9 +266,9 @@ Remove-Item Env:DATABASE_URL
 
 For a schema-changing release, take a backup first, apply the migration, check `/health/ready`, and then promote or redeploy the application code.
 
-## 10. Backup and free-tier limitations
+## 10. Free-tier limitations
 
-Supabase Free does not provide automatic backups. Before an important migration or demo, create and verify a logical backup with a PostgreSQL client such as `pg_dump`. Store it somewhere private and encrypted.
+Automated backup infrastructure is outside this pilot scope. Supabase Free does not provide automatic backups, so do not treat this free deployment as durable production storage.
 
 Also remember:
 
@@ -303,7 +286,7 @@ Before every push, confirm:
 - only `.env.example` templates contain placeholder values;
 - Vercel holds backend secrets;
 - Netlify contains only `NEXT_PUBLIC_API_URL` for this project;
-- no browser-visible variable contains a database password, JWT secret, Groq key, Supabase service-role key, or SMTP password;
+- no browser-visible variable contains a database password, JWT secret, Groq key, or Supabase service-role key;
 - logs and screenshots do not reveal connection strings or tokens.
 
 Useful checks:

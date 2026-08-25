@@ -144,7 +144,7 @@ export default function Home() {
   if (!user) return null;
 
   return (
-    <DashboardSidebar user={user} isAdmin={isAdmin} onLogout={logout}>
+    <DashboardSidebar user={user} isAdmin={isAdmin} onLogout={logout} authFetch={authFetch}>
       <main className="app-content px-4 py-6 md:px-7 md:py-7">
         <div className="mx-auto max-w-[1440px] space-y-7">
           <section className="flex flex-col justify-between gap-5 border-b border-slate-200 pb-6 md:flex-row md:items-end">

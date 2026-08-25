@@ -4,7 +4,7 @@ RxOS is an AI-assisted inventory operations application for independent pharmaci
 
 ## Current status
 
-The recovered prototype has been stabilized on the `codex/recovery-hardening` branch. Backend tests and the frontend production build pass. Docker is the intended local stack, but Docker Desktop must be installed separately on Windows.
+The recovered prototype has been stabilized on the `recovery-hardening` branch. Backend tests and the frontend production build pass. Docker is the intended local stack, but Docker Desktop must be installed separately on Windows.
 
 Implemented:
 
@@ -19,7 +19,7 @@ Implemented:
 - Supplier directory, multi-line purchase orders, and atomic goods receiving
 - Reorder suggestions based on minimum-stock targets and previous supplier/cost
 - Versioned Alembic migrations and real-PostgreSQL CI tests
-- Hashed password-reset tokens with SMTP delivery and session invalidation
+- Hashed password-reset tokens and session invalidation (email delivery disabled for this pilot)
 - AI morning briefing through Groq
 - Tenant-validated, read-only natural-language inventory queries
 - Editable product and batch details with safe zero-stock archival
@@ -27,13 +27,15 @@ Implemented:
 - Sales and inventory CSV exports plus 30-day operational reporting
 - Editable/cancellable draft purchasing and supplier editing
 - Backend unit tests and GitHub Actions CI
+- First-login pharmacy onboarding and an editable single-pharmacy workspace profile
+- In-app low-stock and expiry notifications with configurable alert preferences
 
-Not yet public-market-ready:
+Intentionally outside the current pilot scope:
 
-- SMTP must be configured before production password reset can operate
-- The pilot uses one account per pharmacy; shared staff/branch organizations are not implemented
+- Email/SMTP password-reset delivery remains disabled
+- Multi-staff accounts and multi-branch organizations are not planned for this pilot
+- Automated backup infrastructure is not part of this free pilot deployment
 - Purchase orders and receipts are not yet printable
-- Automated backups, error monitoring, and alert delivery still require paid production services
 - Patient, prescription, payment-card, and regulated medicine data are outside the pilot scope
 
 ## Local setup with Docker
@@ -81,7 +83,7 @@ npm run lint -- --max-warnings=0
 npm run build
 ```
 
-Current verified baseline: 55 backend tests pass locally, two PostgreSQL integration tests run in CI, ESLint passes with zero warnings, and the Next.js production build succeeds.
+Current verified baseline: 60 backend tests pass locally, two PostgreSQL integration tests pass against the migrated database and run in CI, ESLint passes with zero warnings, and the Next.js production build succeeds.
 
 ## Inventory CSV format
 
@@ -97,4 +99,4 @@ See `mock_inventory.csv` for an example.
 
 ## Product direction
 
-See `DEPLOYMENT.md` for migration, SMTP, health-check, backup, and deployment guidance. The next milestone is controlled validation with one or two pharmacy testers, followed by the dashboard and UX redesign.
+See `DEPLOYMENT.md` for migration, health-check, secret-safety, and deployment guidance. The next milestone is controlled validation with one or two pharmacy testers using the onboarding, alert, inventory, purchasing, and sales workflows.

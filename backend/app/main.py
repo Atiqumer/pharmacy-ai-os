@@ -6,7 +6,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-from app.routes import inventory, query, analytics, auth, admin, suppliers, purchasing, sales, reports
+from app.routes import inventory, query, analytics, auth, admin, suppliers, purchasing, sales, reports, workspace
 from app.middleware.logging import log_requests
 
 logger = logging.getLogger("rxos")
@@ -51,6 +51,7 @@ app.include_router(suppliers.router)
 app.include_router(purchasing.router)
 app.include_router(sales.router)
 app.include_router(reports.router)
+app.include_router(workspace.router)
 app.include_router(analytics.router)
 app.include_router(query.router)
 
