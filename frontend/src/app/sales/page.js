@@ -181,7 +181,7 @@ export default function SalesPage() {
       <div className="mx-auto max-w-[1440px] space-y-7">
         <header className="flex flex-col justify-between gap-4 border-b border-slate-200 pb-6 sm:flex-row">
           <div><h1 className="text-2xl font-semibold tracking-tight text-slate-950">Sales workspace</h1><p className="mt-1.5 text-sm text-slate-500">Checkout with FEFO batch allocation and auditable returns.</p></div>
-          <div className="flex gap-2 items-end"><button onClick={() => downloadReport('/reports/inventory.csv', 'inventory.csv')} className="px-3 py-2 bg-slate-800 rounded-md text-sm">Export inventory</button><button onClick={() => downloadReport('/reports/sales.csv', 'sales.csv')} className="px-3 py-2 bg-slate-800 rounded-md text-sm">Export sales</button></div>
+          <div className="flex flex-wrap gap-2"><button onClick={() => downloadReport('/reports/inventory.csv', 'inventory.csv')} className="ui-secondary">Export inventory</button><button onClick={() => downloadReport('/reports/sales.csv', 'sales.csv')} className="ui-secondary">Export sales</button></div>
         </header>
 
         {error && <div role="alert" className="p-3 border border-red-500/30 bg-red-500/10 text-red-300 rounded-lg">{error}</div>}
@@ -204,7 +204,7 @@ export default function SalesPage() {
             </div>)}
             <button type="button" onClick={() => setCart((current) => [...current, { product_id: '', quantity: 1, unit_price: '' }])} className="text-sm text-cyan-300">+ Add item</button>
             <div className="grid sm:grid-cols-2 gap-3"><label className="text-sm text-slate-400">Discount<input name="discount" type="number" min="0" step="0.01" defaultValue="0" className="form-input" /></label><label className="text-sm text-slate-400">Note<input name="notes" maxLength="500" className="form-input" /></label></div>
-            <div className="flex justify-end"><button disabled={actionLoading || loading} className="px-5 py-2 bg-emerald-600 rounded-md font-medium disabled:opacity-40">{actionLoading ? 'Processing…' : 'Complete sale'}</button></div>
+            <div className="flex justify-end"><button disabled={actionLoading || loading} className="ui-primary">{actionLoading ? 'Processing…' : 'Complete sale'}</button></div>
           </form>
         </section>
 

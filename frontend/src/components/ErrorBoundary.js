@@ -15,17 +15,18 @@ export default class ErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center p-8">
-          <div className="max-w-md bg-slate-900 border border-red-500/30 rounded-xl p-6 text-center">
-            <h2 className="text-xl font-bold text-red-400 mb-2">Something went wrong</h2>
-            <p className="text-slate-400 text-sm mb-4">
+        <div className="auth-shell flex min-h-screen items-center justify-center p-6">
+          <div className="glass-auth-card w-full max-w-md rounded-xl border border-white/80 p-7 text-center">
+            <div className="mx-auto mb-4 grid h-11 w-11 place-items-center rounded-full bg-rose-50 text-lg font-bold text-rose-700">!</div>
+            <h2 className="mb-2 text-xl font-semibold text-slate-950">Something went wrong</h2>
+            <p className="mb-5 text-sm leading-6 text-slate-500">
               {this.state.error?.message || 'An unexpected error occurred.'}
             </p>
             <button
               onClick={() => this.setState({ hasError: false, error: null })}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-md text-sm transition-colors"
+              className="ui-primary"
             >
-              Try Again
+              Try again
             </button>
           </div>
         </div>

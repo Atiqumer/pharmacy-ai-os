@@ -1,297 +1,160 @@
-# Project Status: AI-Powered Pharmacy Operating System (RxOS)
+# Pharmacy AI OS — Project Status
 
-## Overview
-A full-stack application that combines a Python/FastAPI backend with a Next.js/React frontend to provide AI-powered inventory management, conversational database querying, and operational analytics for independent medical stores.
+**Updated:** 26 August 2026
 
----
+**Branch:** `recovery-hardening`
 
-## Tech Stack
+**Stage:** Pilot-ready MVP hardening for 1–2 independent pharmacy testers
 
-### Backend
-- **Framework:** FastAPI (Python 3.13)
-- **Database:** PostgreSQL 16 with `psycopg2`
-- **AI Engine:** Groq API (`openai/gpt-oss-20b` by default)
-- **Data Processing:** Pandas
-- **Auth:** JWT (PyJWT) with PostgreSQL `pgcrypto` password hashing
-- **RBAC:** Role-based access control (admin/user)
-- **SQL Validation:** `sqlparse` for injection protection
-- **Rate Limiting:** `slowapi` (per-endpoint limits)
-- **Testing:** `pytest` + `httpx`, including PostgreSQL integration tests in CI
-- **Migrations:** Alembic
-- **Env Management:** `python-dotenv`
-- **Deployment:** Docker + Docker Compose
+## What this project is
 
-### Frontend
-- **Framework:** Next.js 16.2.9 (React 19.2.4)
-- **Styling:** Tailwind CSS 4
-- **Compiler:** React Compiler (babel-plugin-react-compiler)
-- **Utilities:** react-markdown (for rendering AI briefing output)
-- **Voice Input:** Web Speech API (browser-native)
-- **Auth:** Custom AuthContext with JWT token management
-- **Routing:** App Router with `/login`, `/admin`, `/forgot-password` pages
-- **Deployment:** Docker (standalone output)
+Pharmacy AI OS is a lightweight, owner-operated pharmacy management SaaS. It brings inventory, suppliers, purchasing, sales, returns, reports, low-stock/expiry alerts, and AI-assisted stock analysis into one web application.
 
----
+The current product is deliberately focused on a single pharmacy owner/operator. It is not intended to replace a regulated clinical, prescription, patient-record, or enterprise ERP system.
 
-## Architecture
+## Problem being solved
 
-```
-pharmacy/
-├── .github/
-│   └── workflows/
-│       └── ci.yml                  # GitHub Actions CI (pytest + npm build)
-├── .env.example                    # Root env template for Docker Compose
-├── docker-compose.yml              # Production stack (db + backend + frontend)
-├── backend/
-│   ├── Dockerfile                  # Python 3.13-slim container
-│   ├── .env                        # Secrets
-│   ├── .env.example                # Backend env template
-│   ├── .dockerignore
-│   ├── requirements.txt
-│   ├── requirements-dev.txt
-│   ├── pyproject.toml
-│   ├── tests/
-│   │   ├── __init__.py
-│   │   ├── conftest.py
-│   │   ├── test_api.py
-│   │   └── test_purchasing.py      # 40 total unit tests
-│   └── app/
-│       ├── main.py                 # FastAPI entrypoint, lifespan, CORS, rate limiting
-│       ├── database.py             # PostgreSQL connection + auto table init
-│       ├── middleware/
-│       │   ├── __init__.py
-│       │   └── logging.py          # Request/response logging
-│       ├── routes/
-│       │   ├── __init__.py
-│       │   ├── auth.py             # signup, login, me, password reset
-│       │   ├── admin.py            # User management (admin-only)
-│       │   ├── inventory.py        # CSV upload (auth-protected)
-│       │   ├── analytics.py        # Morning briefing (auth-protected)
-│       │   └── query.py            # NL→SQL query (auth-protected)
-│       └── services/
-│           ├── auth.py             # JWT, RBAC, get_current_user, require_role
-│           ├── ai_service.py       # Briefing generation (owner-scoped)
-│           └── query_service.py    # NL→SQL with sqlparse validation
-├── frontend/
-│   ├── Dockerfile                  # Multi-stage Node.js 20 build
-│   ├── .dockerignore
-│   ├── next.config.mjs             # Standalone output for Docker
-│   ├── .env.local
-│   ├── .env.example
-│   └── src/
-│       ├── contexts/
-│       │   └── AuthContext.js      # Auth state + isAdmin flag
-│       ├── components/
-│       │   └── ErrorBoundary.js
-│       └── app/
-│           ├── layout.js
-│           ├── globals.css
-│           ├── page.js             # Main dashboard (auth-gated, admin badge)
-│           ├── login/page.js       # Login/signup + forgot password link
-│           ├── forgot-password/page.js  # Password reset flow
-│           ├── purchasing/page.js  # Suppliers, purchase orders, receiving
-│           └── admin/page.js       # Admin panel (user management)
-└── mock_inventory.csv
-```
+Small pharmacies often manage stock in spreadsheets or disconnected tools. This creates four practical problems:
 
----
+- stockouts are noticed too late;
+- expiring medicine is difficult to identify early;
+- purchasing, receiving, sales, and returns do not share one auditable stock history;
+- owners cannot quickly turn inventory data into useful operational answers.
 
-## API Endpoints
+Pharmacy AI OS gives the operator one source of truth and converts its data into alerts, summaries, reports, and plain-language answers.
 
-| Method | Endpoint | Auth | Role | Rate Limit | Description |
-|--------|----------|------|------|------------|-------------|
-| GET | `/` | No | - | 30/min | Health check |
-| POST | `/auth/signup` | No | - | - | Create account |
-| POST | `/auth/login` | No | - | - | Sign in |
-| GET | `/auth/me` | Yes | any | - | Get current user |
-| POST | `/auth/password-reset-request` | No | - | - | Request password reset |
-| POST | `/auth/password-reset-confirm` | No | - | - | Confirm password reset |
-| GET | `/admin/users` | Yes | admin | 30/min | List all users |
-| PUT | `/admin/users/role` | Yes | admin | 10/min | Update user role |
-| PUT | `/admin/users/active` | Yes | admin | 10/min | Activate/deactivate user |
-| DELETE | `/admin/users/{id}` | Yes | admin | 5/min | Delete user |
-| POST | `/inventory/upload-csv` | Yes | any | 10/min | Upload CSV inventory |
-| GET | `/inventory/summary` | Yes | any | 30/min | Stock, expiry, and valuation KPIs |
-| GET | `/inventory/items` | Yes | any | 30/min | Searchable/filterable batch inventory |
-| POST | `/inventory/items` | Yes | any | 30/min | Manually create a product batch |
-| POST | `/inventory/items/{batch_id}/adjust` | Yes | any | 30/min | Atomically adjust stock and write audit entry |
-| GET | `/inventory/movements` | Yes | any | 30/min | Tenant-scoped stock movement history |
-| GET | `/suppliers` | Yes | any | 30/min | Search/list tenant suppliers |
-| POST | `/suppliers` | Yes | any | 20/min | Create supplier |
-| PUT | `/suppliers/{id}` | Yes | any | 20/min | Update or deactivate supplier |
-| POST | `/purchasing/orders` | Yes | any | 20/min | Create draft purchase order |
-| GET | `/purchasing/orders` | Yes | any | 30/min | List purchase orders |
-| GET | `/purchasing/orders/{id}` | Yes | any | 30/min | Purchase order detail and lines |
-| POST | `/purchasing/orders/{id}/submit` | Yes | any | 20/min | Submit draft order |
-| POST | `/purchasing/orders/{id}/receive` | Yes | any | 20/min | Atomically receive goods into inventory |
-| GET | `/analytics/morning-briefing` | Yes | any | 5/min | AI briefing |
-| GET | `/analytics/reorder-suggestions` | Yes | any | 15/min | Deterministic low-stock reorder targets |
-| GET | `/query/ask?q=` | Yes | any | 15/min | NL→SQL query |
+## Production architecture
 
----
+| Layer | Technology | Current deployment |
+|---|---|---|
+| Frontend | Next.js 16, React 19, Tailwind CSS 4 | Netlify — `https://pharmacy-ai-os.netlify.app` |
+| Backend API | FastAPI, Python, Uvicorn | Vercel — `https://pharmacy-ai-os.vercel.app` |
+| Database | PostgreSQL with Alembic migrations | Supabase |
+| AI | Groq API | Called only by the backend |
+| CI | GitHub Actions | Backend tests, PostgreSQL integration tests, frontend lint and build |
 
-## Features
+Secrets are supplied through local `.env` files or hosting-provider environment variables. They must never be committed to GitHub. The browser receives only the public backend URL.
 
-### 1. User Authentication & RBAC
-- JWT-based auth with `pgcrypto` password hashing
-- Two roles: `user` (default) and `admin`
-- Admin can manage users: list, change roles, activate/deactivate, delete
-- Password reset flow with token-based confirmation
-- Password reset stores SHA-256 token hashes, supports SMTP delivery, and invalidates old sessions
-- Deactivated users cannot log in
+## Implemented and working
 
-### 2. Multi-Tenancy
-- All data (Product, Batch, Supplier) scoped to owner via `ownerId` FK
-- Admin can view all data across users
-- Active status and current role are revalidated from PostgreSQL on each protected request
+### Account and pharmacy setup
 
-### 3. CSV Inventory Import
-- Upload `.csv` with columns: `product_name`, `generic_name`, `category`, `batch_number`, `quantity`, `cost_price`, `retail_price`, `expiry_date`
-- Optional: `min_stock_level` (defaults to `10`)
-- Validates size, row count, text, dates, quantities, and prices before writing
-- Safely upserts Product, Supplier, and Batch records scoped to the user
+- Email/password signup and login with JWT authentication.
+- Optional persistent login, plus a 30-minute inactivity timeout.
+- Live account-status validation on protected backend requests.
+- Admin role and account activation/archive controls.
+- First-login pharmacy onboarding.
+- Editable pharmacy name, owner/contact details, address, currency, low-stock threshold, and expiry-warning window.
+- Owner-scoped business data: each account sees only its own pharmacy records.
 
-### 4. Inventory Operations Dashboard
-- Tenant-scoped batch inventory with server-side search and pagination
-- Low-stock, in-stock, expiring, expired, and valid filters
-- Product/unit totals, inventory cost, retail value, and potential margin
-- Automatic dashboard refresh after a successful import
-- Manual product/batch creation with opening-stock audit entries
-- Atomic stock adjustments with negative-stock prevention
-- Movement history containing before/after quantities, reasons, notes, user, and time
+### Inventory
 
-### 5. AI Morning Briefing
-- Pulls SKU count, low-stock items, items expiring within 90 days
-- Owner-scoped operational metrics sent to the configured Groq production model
-- Markdown briefing rendered with react-markdown
+- CSV inventory import with validation and safe product/batch upserts.
+- Manual product and batch creation.
+- Search, pagination, and stock/expiry filters.
+- Product and batch editing/archiving.
+- Atomic stock adjustments with negative-stock protection.
+- Stock movement audit history with before/after quantities, reason, note, user, and timestamp.
+- Cost value, retail value, potential margin, low-stock, expired, and expiring KPIs.
 
-### 6. Conversational Database Explorer
-- Plain English question → LLM → validated SQL → results
-- Voice input via Web Speech API (Chrome/Edge)
+### Notifications
 
-### 7. Security
-- **SQL Injection:** `sqlparse` parsing + SELECT-only + keyword blocklist + table allowlist + mandatory per-table tenant filters
-- **Query Safety:** read-only transactions, five-second statement timeout, and 100-row response cap
-- **Auth:** JWT with configurable expiry plus live database account validation
-- **RBAC:** Admin-only routes with `require_role()` dependency
-- **CORS:** Configurable via env var
-- **Rate Limiting:** Per-endpoint via slowapi
-- **Logging:** Structured request/response logging
+- In-app low-stock notifications.
+- In-app expiry and expired-stock notifications.
+- Notification thresholds come from pharmacy settings.
+- Frontend refreshes notification data every two minutes while the app is open.
+- Alerts are computed from current inventory, so they cannot become stale stored records.
 
-### 8. Supplier & Purchasing Operations
-- Tenant-scoped supplier directory with contact details and activation status
-- Multi-line draft purchase orders with expected dates and calculated totals
-- Draft → ordered → partially received → received workflow
-- Goods receipt records with supplier reference and notes
-- Over-receipt prevention using row locks and outstanding quantities
-- Atomic batch upsert, inventory increase, receipt record, and stock-ledger entry
+### Suppliers and purchasing
 
----
+- Supplier creation and editing.
+- Multi-line purchase-order drafts.
+- Draft editing, submission, and cancellation.
+- Ordered, partially received, received, and cancelled states.
+- Partial/full goods receiving with supplier reference and notes.
+- Batch creation/upsert, inventory increase, goods receipt, and stock-ledger entry in one transaction.
+- Over-receipt prevention and ownership checks.
 
-## Database Schema
+### Sales and returns
 
-| Table | Key Columns |
-|-------|-------------|
-| `User` | id (UUID), email (unique), password_hash, full_name, role (user/admin), is_active, created_at |
-| `Product` | id (UUID), name, genericName, category, minStockLevel, ownerId (FK→User) |
-| `Batch` | id (UUID), batchNumber, productId (FK), supplierId (FK), quantity, costPrice, retailPrice, expiryDate, ownerId (FK→User) |
-| `Supplier` | id (UUID), name, ownerId (FK→User) |
-| `StockMovement` | batchId, productId, ownerId, createdBy, quantityChange, quantityBefore, quantityAfter, reason, note |
-| `PurchaseOrder` | orderNumber, supplierId, ownerId, status, expectedDate, totalCost |
-| `PurchaseOrderItem` | purchaseOrderId, productId, orderedQuantity, receivedQuantity, costPrice |
-| `GoodsReceipt` | purchaseOrderId, ownerId, receivedBy, reference, received_at |
-| `GoodsReceiptItem` | receiptId, purchaseOrderItemId, batchId, quantity |
-| `PasswordReset` | id (UUID), userId (FK→User), token, expires_at, used |
+- Multi-item checkout.
+- FEFO batch allocation (first expiry, first out).
+- Atomic stock deductions and movement entries.
+- Sale history and detail view.
+- Partial and full returns to the exact original batch.
+- Return audit records and refunded-state handling.
 
-Schema changes are versioned in `backend/migrations`; containers apply `alembic upgrade head` before starting.
+### Reports and AI
 
----
+- 30-day sales, completed-sales, and estimated-gross-profit summary.
+- Inventory CSV and sales CSV downloads.
+- AI morning briefing using owner-scoped operational metrics.
+- Plain-language inventory questions converted to validated, read-only SQL.
+- Query table allowlist, mandatory owner filters, timeout, row limit, and transaction safeguards.
+- Browser voice input where the Web Speech API is supported.
 
-## Deployment
+### User experience
 
-### Docker Compose (Recommended)
-```bash
-# 1. Create .env from template
-cp .env.example .env
-# Edit .env with your GROQ_API_KEY and JWT_SECRET
+- Responsive SaaS shell with desktop collapse and mobile drawer navigation.
+- Light glassmorphism used as a restrained surface treatment.
+- Dashboard, inventory, purchasing, sales, reports, settings, onboarding, login/signup, admin, notifications, and error states share one visual system.
+- Accessible disabled button states, keyboard focus indicators, responsive forms, and horizontally scrollable data tables.
+- Empty, loading, success, and error states for core workflows.
 
-# 2. Start the stack
-docker-compose up -d
+## Database and migrations
 
-# 3. Access
-# Frontend: http://localhost:3000
-# Backend:  http://localhost:8000
-# Database: localhost:5432
-```
+The Supabase PostgreSQL schema is managed by Alembic. Current migration head:
 
-### Local Development
-```bash
-# Backend
-cd backend
-cp .env.example .env
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+`20260826_0003_pharmacy_workspace.py`
 
-# Frontend
-cd frontend
-cp .env.example .env.local
-npm install
-npm run dev
-```
+The schema covers users, pharmacy profiles, products, batches, suppliers, stock movements, purchase orders/items, goods receipts/items, sales/items, and returns/items. Referential constraints and transactional writes protect inventory integrity.
 
----
+## Security and operational controls
 
-## Environment Variables
+- Password hashes are stored with PostgreSQL `pgcrypto`.
+- JWT secrets, database credentials, and Groq credentials remain backend-only.
+- CORS is environment-configured for approved frontend origins.
+- Per-endpoint rate limiting is enabled.
+- Admin routes enforce backend role checks.
+- SQL generated from natural language is SELECT-only, owner-scoped, table-limited, time-limited, and row-limited.
+- Accounts are archived/deactivated instead of deleting their business history.
 
-### Backend
-| Variable | Required | Default | Purpose |
-|----------|----------|---------|---------|
-| `DATABASE_URL` | Yes | - | PostgreSQL connection string |
-| `GROQ_API_KEY` | Yes | - | Groq API key |
-| `JWT_SECRET` | Yes | dev-secret | JWT signing secret (32+ chars) |
-| `JWT_EXPIRY_HOURS` | No | 8 | Maximum backend token lifetime; frontend also ends inactive sessions after 30 minutes |
-| `CORS_ORIGINS` | No | http://localhost:3000 | Allowed origins |
+## Verification baseline
 
-### Frontend
-| Variable | Required | Default | Purpose |
-|----------|----------|---------|---------|
-| `NEXT_PUBLIC_API_URL` | No | http://127.0.0.1:8000 | Backend API URL |
+- **60 backend unit/API tests** cover authentication, authorization, inventory, stock ledger, suppliers, purchasing, sales, returns, reports, notifications, settings, and AI query safety.
+- **2 live PostgreSQL integration tests** verify migrations and database constraints.
+- Frontend ESLint and production build are required by CI.
+- There is currently no automated frontend component or browser end-to-end test suite.
 
----
+## Intentionally out of scope for this pilot
 
-## Testing
+These are product decisions, not unfinished tasks:
 
-**55 backend tests passing locally**, plus **2 PostgreSQL integration tests in CI**.
+- SMTP/email alerts or password-reset email delivery;
+- multiple staff accounts per pharmacy;
+- multiple branches;
+- a custom automated backup system;
+- patient records, prescriptions, insurance, online payments, or regulated clinical workflows.
 
-| Class | Tests | Coverage |
-|-------|-------|----------|
-| `TestHealthEndpoint` | 1 | Root endpoint |
-| `TestSQLValidation` | 11 | SELECT-only, keywords, tables, tenant filters, edge cases |
-| `TestJWTAuth` | 5 | Token validation, protected endpoints |
-| `TestUploadCSVValidation` | 2 | File type and column validation |
-| `TestInventoryReporting` | 3 | Summary, list filters, and tenant-scoped query parameters |
-| `TestStockLedger` | 4 | Manual creation, atomic adjustment, negative-stock prevention, history scope |
-| `TestSuppliers` | 2 | Tenant scoping and supplier creation |
-| `TestPurchasing` | 4 | Product ownership, submission, atomic receiving, over-receipt prevention |
-| `TestAuthSignupValidation` | 3 | Password length, fields, login flow |
-| `TestRBAC` | 5 | Admin access, user denial, live role/status enforcement |
+Supabase platform recovery/backup options remain the hosting provider's responsibility; the application will not build its own backup scheduler for this pilot.
 
-Run: `cd backend && .venv/Scripts/python -m pytest -v` on Windows, or `.venv/bin/python -m pytest -v` on Linux/macOS.
+## Remaining before the 1–2 pharmacy pilot
 
----
+### Required
 
-## CI/CD
+1. Run a complete real-data acceptance test: setup → import/create stock → supplier → purchase order → receive → sale → return → reports → alerts.
+2. Test on the pharmacy's actual desktop/tablet and the browsers it will use.
+3. Verify production environment variables and allowed origins after every hosting change.
+4. Prepare a small clean demo CSV and a one-page operator guide.
+5. Record tester feedback and fix workflow blockers before adding more features.
 
-GitHub Actions (`.github/workflows/ci.yml`):
-- **Backend:** Python 3.11, pip install, pytest
-- **PostgreSQL CI:** PostgreSQL 16 service, Alembic upgrade, schema/constraint integration tests
-- **Frontend:** Node.js 20, npm ci, lint, build
+### Valuable after pilot feedback
 
----
+- Printable purchase orders, goods receipts, and sales receipts.
+- Barcode-scanner support if testers confirm it is important.
+- Automated frontend browser tests for the critical inventory-to-sale journey.
+- Basic uptime/error monitoring supplied by the hosting platforms or a free external monitor.
 
-## Known Gaps / Next Steps
-1. No email verification on signup
-2. No frontend tests (Jest/Playwright)
-3. Pilot sales and returns are implemented; printable purchasing and sales documents remain
-4. Production hosting is deployed, while automated backups and monitoring still require provisioning
-5. Existing pre-Alembic databases require a reviewed adoption migration before stamping
+## Current readiness assessment
+
+The core functional scope for a single-owner pilot is implemented. The remaining risk is now operational validation and usability on real pharmacy data—not a missing core backend module. After the required acceptance test passes with one or two pharmacies, the next major phase should be frontend refinement based on observed tester behavior rather than speculative feature expansion.

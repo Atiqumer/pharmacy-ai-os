@@ -2,7 +2,6 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import AuthLayout from '@/components/AuthLayout';
 
 export default function LoginPage() {
@@ -81,7 +80,7 @@ export default function LoginPage() {
               />
             </div>
 
-            {!isSignup && <div className="flex items-center justify-between gap-3"><label className="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-[#18324b]" />Keep me signed in</label><Link href="/forgot-password" className="text-sm font-medium text-[#18324b] hover:underline">Forgot password?</Link></div>}
+            {!isSignup && <label className="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-[#18324b]" />Keep me signed in</label>}
 
             <button
               type="submit"
