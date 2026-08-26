@@ -10,6 +10,13 @@ import AppIcon from '@/components/AppIcon';
 import { getApiErrorMessage } from '@/lib/apiError';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+const inventoryMoney = new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 2 });
+const resultColumnOrder = ['productname', 'name', 'genericname', 'category', 'batchnumber', 'quantity', 'totalstock', 'stock', 'costprice', 'retailprice', 'expirydate', 'minstocklevel'];
+const resultLabels = {
+  productname: 'Product', name: 'Product', genericname: 'Generic name', category: 'Category',
+  batchnumber: 'Batch', quantity: 'Quantity', totalstock: 'Total stock', stock: 'Stock',
+  costprice: 'Cost price', retailprice: 'Retail price', expirydate: 'Expiry', minstocklevel: 'Minimum stock',
+};
 
 export default function Home() {
   const { user, loading, logout, authFetch, isAdmin } = useAuth();
@@ -164,8 +171,8 @@ export default function Home() {
 
           <InventoryDashboard authFetch={authFetch} refreshKey={inventoryRefreshKey} />
 
-          <div className="grid gap-5 xl:grid-cols-[1.45fr_0.8fr]">
-            <section className="glass-panel rounded-lg border border-white/80">
+          <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
+            <section className="glass-panel min-w-0 rounded-lg border border-white/80">
               <div className="border-b border-slate-200 px-5 py-4">
                 <h2 className="text-sm font-semibold text-slate-900">Inventory assistant</h2><p className="mt-0.5 text-xs text-slate-500">Search your stock using plain language.</p>
               </div>
@@ -179,15 +186,11 @@ export default function Home() {
               </form>
               {searchError && <div role="alert" className="mx-5 mb-5 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{searchError}</div>}
               {searchResults && (
-                <div className="mx-5 mb-5 overflow-hidden rounded-lg border border-slate-200">
-                  {searchResults.data.length === 0 ? <p className="p-5 text-sm text-slate-500">No matching inventory was found.</p> : (
-                    <div className="overflow-x-auto"><table className="w-full text-left text-sm text-slate-700"><thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500"><tr>{Object.keys(searchResults.data[0]).map((key) => <th key={key} className="border-b border-slate-200 px-4 py-3">{key}</th>)}</tr></thead><tbody>{searchResults.data.map((row, idx) => <tr key={idx} className="border-b border-slate-100 last:border-0">{Object.values(row).map((val, i) => <td key={i} className="max-w-xs truncate px-4 py-3">{String(val)}</td>)}</tr>)}</tbody></table></div>
-                  )}
-                </div>
+                <SearchResults data={searchResults.data} />
               )}
             </section>
 
-            <section className="glass-panel rounded-lg border border-white/80">
+            <section className="glass-panel min-w-0 rounded-lg border border-white/80">
               <div className="border-b border-slate-200 px-5 py-4">
                 <h2 className="text-sm font-semibold text-slate-900">Import inventory</h2><p className="mt-0.5 text-xs text-slate-500">Add stock from a prepared CSV file.</p>
               </div>
@@ -212,4 +215,55 @@ export default function Home() {
       </main>
     </DashboardSidebar>
   );
+}
+
+function SearchResults({ data }) {
+  if (!Array.isArray(data) || data.length === 0) {
+    return <div className="mx-5 mb-5 rounded-lg border border-slate-200 bg-white/55 p-5 text-sm text-slate-500">No matching inventory was found.</div>;
+  }
+
+  const columns = getResultColumns(data[0]);
+  return (
+    <div className="mx-5 mb-5 overflow-hidden rounded-lg border border-slate-200 bg-white/55">
+      <div className="flex items-center justify-between border-b border-slate-200 bg-white/60 px-4 py-2.5">
+        <p className="text-xs font-semibold text-slate-700">{data.length} {data.length === 1 ? 'result' : 'results'}</p>
+        <p className="text-[11px] text-slate-400">Inventory data</p>
+      </div>
+      <div className="max-w-full overflow-x-auto">
+        <table className="w-full min-w-[680px] text-left text-sm text-slate-700">
+          <thead className="bg-slate-50/90 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+            <tr>{columns.map((column) => <th key={column.key} className="whitespace-nowrap border-b border-slate-200 px-4 py-3">{column.label}</th>)}</tr>
+          </thead>
+          <tbody>{data.map((row, index) => <tr key={index} className="border-b border-slate-100 last:border-0 hover:bg-white/70">{columns.map((column) => <td key={column.key} className="max-w-[220px] whitespace-nowrap px-4 py-3">{formatResultValue(row[column.key], column.normalized)}</td>)}</tr>)}</tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function getResultColumns(row) {
+  const available = Object.keys(row).map((key) => ({ key, normalized: key.toLowerCase().replace(/[^a-z0-9]/g, '') }))
+    .filter((column) => !column.normalized.endsWith('id') && !['createdat', 'updatedat', 'ownerid'].includes(column.normalized));
+  return available
+    .sort((a, b) => {
+      const first = resultColumnOrder.indexOf(a.normalized);
+      const second = resultColumnOrder.indexOf(b.normalized);
+      return (first === -1 ? 999 : first) - (second === -1 ? 999 : second);
+    })
+    .slice(0, 9)
+    .map((column) => ({ ...column, label: resultLabels[column.normalized] || humanizeColumn(column.key) }));
+}
+
+function humanizeColumn(value) {
+  return value.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatResultValue(value, normalized) {
+  if (value === null || value === undefined || value === '') return '—';
+  if (['costprice', 'retailprice'].includes(normalized) && !Number.isNaN(Number(value))) return inventoryMoney.format(Number(value));
+  if (normalized === 'expirydate') {
+    const parsed = new Date(`${String(value).slice(0, 10)}T00:00:00`);
+    if (!Number.isNaN(parsed.getTime())) return parsed.toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+  return String(value);
 }
