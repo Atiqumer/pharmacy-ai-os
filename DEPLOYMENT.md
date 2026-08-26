@@ -119,7 +119,7 @@ Important:
 - Include `?sslmode=require`.
 - Do not add spaces around values.
 - `JWT_SECRET` must remain stable. Changing it logs out every user.
-- Keep password-reset email delivery disabled for this pilot.
+- Keep password-reset email delivery disabled for the current release.
 
 Select **Deploy**. When it completes, copy the production URL, for example:
 
@@ -244,7 +244,7 @@ Never paste the key into a support message, Vercel build log, source file, or an
 
 ## 8. Password-reset scope
 
-Email password reset is intentionally outside this pilot. Keep `PASSWORD_RESET_DELIVERY=disabled`. Do not add SMTP variables to Vercel or frontend variables to Netlify.
+Email password reset is intentionally outside the current release. Keep `PASSWORD_RESET_DELIVERY=disabled`. Do not add SMTP variables to Vercel or frontend variables to Netlify.
 
 ## 9. Updating the deployed application
 
@@ -268,7 +268,7 @@ For a schema-changing release, take a backup first, apply the migration, check `
 
 ## 10. Free-tier limitations
 
-Automated backup infrastructure is outside this pilot scope. Supabase Free does not provide automatic backups, so do not treat this free deployment as durable production storage.
+Automated backup infrastructure is outside the current scope. Supabase Free does not provide automatic backups, so do not treat this free deployment as durable production storage.
 
 Also remember:
 

@@ -14,7 +14,7 @@ export default function AuthLayout({ title, description, children }) {
             <Feature icon="purchasing" text="Supplier and purchase-order management" />
           </div>
         </div>
-        <p className="text-xs text-slate-400">RxOS pilot workspace</p>
+        <p className="text-xs text-slate-400">RxOS pharmacy workspace</p>
       </section>
       <section className="flex min-h-screen items-center justify-center p-5 sm:p-10">
         <div className="w-full max-w-[420px]">

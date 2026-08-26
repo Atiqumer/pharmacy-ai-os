@@ -19,24 +19,24 @@ Implemented:
 - Supplier directory, multi-line purchase orders, and atomic goods receiving
 - Reorder suggestions based on minimum-stock targets and previous supplier/cost
 - Versioned Alembic migrations and real-PostgreSQL CI tests
-- Hashed password-reset tokens and session invalidation (email delivery disabled for this pilot)
+- Hashed password-reset tokens and session invalidation (email delivery disabled for the current release)
 - AI morning briefing through Groq
 - Tenant-validated, read-only natural-language inventory queries
 - Editable product and batch details with safe zero-stock archival
-- Pilot sales checkout with FEFO batch allocation, discounts, and exact-batch returns
+- Sales checkout with FEFO batch allocation, discounts, and exact-batch returns
 - Sales and inventory CSV exports plus 30-day operational reporting
 - Editable/cancellable draft purchasing and supplier editing
 - Backend unit tests and GitHub Actions CI
 - First-login pharmacy onboarding and an editable single-pharmacy workspace profile
 - In-app low-stock and expiry notifications with configurable alert preferences
 
-Intentionally outside the current pilot scope:
+Intentionally outside the current release scope:
 
 - Email/SMTP password-reset delivery remains disabled
-- Multi-staff accounts and multi-branch organizations are not planned for this pilot
-- Automated backup infrastructure is not part of this free pilot deployment
+- Multi-staff accounts and multi-branch organizations are not planned for the current release
+- Automated backup infrastructure is not part of this free deployment
 - Purchase orders and receipts are not yet printable
-- Patient, prescription, payment-card, and regulated medicine data are outside the pilot scope
+- Patient, prescription, payment-card, and regulated medicine data are outside the current scope
 
 ## Local setup with Docker
 

@@ -4,7 +4,7 @@
 
 **Branch:** `recovery-hardening`
 
-**Stage:** Pilot-ready MVP hardening for 1–2 independent pharmacy testers
+**Stage:** Production-readiness hardening for 1–2 independent pharmacy testers
 
 ## What this project is
 
@@ -126,7 +126,7 @@ The schema covers users, pharmacy profiles, products, batches, suppliers, stock 
 - Frontend ESLint and production build are required by CI.
 - There is currently no automated frontend component or browser end-to-end test suite.
 
-## Intentionally out of scope for this pilot
+## Intentionally out of scope for the current release
 
 These are product decisions, not unfinished tasks:
 
@@ -136,9 +136,9 @@ These are product decisions, not unfinished tasks:
 - a custom automated backup system;
 - patient records, prescriptions, insurance, online payments, or regulated clinical workflows.
 
-Supabase platform recovery/backup options remain the hosting provider's responsibility; the application will not build its own backup scheduler for this pilot.
+Supabase platform recovery/backup options remain the hosting provider's responsibility; the application will not build its own backup scheduler for the initial release.
 
-## Remaining before the 1–2 pharmacy pilot
+## Remaining before testing with 1–2 pharmacies
 
 ### Required
 
@@ -147,8 +147,9 @@ Supabase platform recovery/backup options remain the hosting provider's responsi
 3. Verify production environment variables and allowed origins after every hosting change.
 4. Prepare a small clean demo CSV and a one-page operator guide.
 5. Record tester feedback and fix workflow blockers before adding more features.
+6. Reduce first-load latency by consolidating workspace requests and reusing database connections where the hosting environment permits it.
 
-### Valuable after pilot feedback
+### Valuable after tester feedback
 
 - Printable purchase orders, goods receipts, and sales receipts.
 - Barcode-scanner support if testers confirm it is important.
@@ -157,4 +158,4 @@ Supabase platform recovery/backup options remain the hosting provider's responsi
 
 ## Current readiness assessment
 
-The core functional scope for a single-owner pilot is implemented. The remaining risk is now operational validation and usability on real pharmacy data—not a missing core backend module. After the required acceptance test passes with one or two pharmacies, the next major phase should be frontend refinement based on observed tester behavior rather than speculative feature expansion.
+The core functional scope for a single-owner release is implemented. The remaining risk is now operational validation and usability on real pharmacy data—not a missing core backend module. After the required acceptance test passes with one or two pharmacies, the next major phase should be frontend refinement based on observed tester behavior rather than speculative feature expansion.

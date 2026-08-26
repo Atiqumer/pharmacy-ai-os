@@ -114,7 +114,7 @@ export default function DashboardSidebar({ user, isAdmin, onLogout, authFetch, c
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="hidden items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 sm:flex"><span className="h-2 w-2 rounded-full bg-emerald-500 ring-4 ring-emerald-100" /> Pilot workspace</div>
+            <div className="hidden items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 sm:flex"><span className="h-2 w-2 rounded-full bg-emerald-500 ring-4 ring-emerald-100" /> System online</div>
             <NotificationCenter authFetch={authFetch} />
             <div className="h-7 w-px bg-slate-200" />
             <div className="flex items-center gap-2.5">
@@ -174,7 +174,7 @@ function Brand({ collapsed = false }) {
   return (
     <Link href="/" aria-label="RxOS dashboard" className={`flex h-16 shrink-0 items-center border-b border-slate-100 ${collapsed ? 'justify-center px-3' : 'gap-3 px-5'}`}>
       <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[#18324b] text-white shadow-sm"><span className="text-xl font-semibold leading-none">+</span></div>
-      {!collapsed && <div className="min-w-0"><div className="flex items-center gap-2"><p className="text-[17px] font-extrabold tracking-tight text-slate-950">RxOS</p><span className="rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-500">Pilot</span></div><p className="mt-0.5 text-[10px] font-semibold tracking-wide text-slate-500">Pharmacy operations</p></div>}
+      {!collapsed && <div className="min-w-0"><p className="text-[17px] font-extrabold tracking-tight text-slate-950">RxOS</p><p className="mt-0.5 text-[10px] font-semibold tracking-wide text-slate-500">Pharmacy operations</p></div>}
     </Link>
   );
 }
