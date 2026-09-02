@@ -12,3 +12,7 @@ node_modules/
 *.egg-info/
 dist/
 build/
+
+# Local/generated test artifacts may contain private pharmacy data.
+outputs/
+tmp/
