@@ -7,6 +7,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from app.database import get_db_connection
+from app.utils.datetime import utc_isoformat
 from app.services.auth import get_current_user
 
 
@@ -59,7 +60,7 @@ def _profile_response(row):
             "low_stock_alerts": row["low_stock_alerts"],
             "expiry_alerts": row["expiry_alerts"],
             "onboarding_completed_at": str(row["onboarding_completed_at"]),
-            "updated_at": str(row["updated_at"]),
+            "updated_at": utc_isoformat(row["updated_at"]),
         },
     }
 

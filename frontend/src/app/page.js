@@ -8,6 +8,7 @@ import InventoryDashboard from '@/components/InventoryDashboard';
 import DashboardSidebar from '@/components/DashboardSidebar';
 import AppIcon from '@/components/AppIcon';
 import { getApiErrorMessage } from '@/lib/apiError';
+import { notifyInventoryChanged } from '@/lib/workspaceEvents';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 const inventoryMoney = new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 2 });
@@ -91,6 +92,7 @@ export default function Home() {
       if (res.ok) {
         setStatusMessage('Inventory CSV successfully imported!');
         setInventoryRefreshKey((key) => key + 1);
+        notifyInventoryChanged();
       }
       else setStatusMessage(`Error: ${getApiErrorMessage(data, 'Upload failed')}`);
     } catch (err) {

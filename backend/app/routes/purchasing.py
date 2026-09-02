@@ -9,6 +9,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from app.database import get_db_connection
+from app.utils.datetime import utc_isoformat
 from app.services.auth import get_current_user
 
 limiter = Limiter(key_func=get_remote_address)
@@ -116,7 +117,7 @@ async def create_purchase_order(
             "order_number": purchase_order["orderNumber"],
             "status": purchase_order["status"],
             "total_cost": float(purchase_order["totalCost"]),
-            "created_at": str(purchase_order["created_at"]),
+            "created_at": utc_isoformat(purchase_order["created_at"]),
         }
     except HTTPException:
         conn.rollback()
@@ -173,7 +174,7 @@ async def list_purchase_orders(
                 "expected_date": str(row["expectedDate"]) if row["expectedDate"] else None,
                 "total_cost": float(row["totalCost"]), "line_count": row["line_count"],
                 "ordered_quantity": row["ordered_quantity"], "received_quantity": row["received_quantity"],
-                "created_at": str(row["created_at"]),
+                "created_at": utc_isoformat(row["created_at"]),
             } for row in rows],
             "total": rows[0]["total_count"] if rows else 0,
             "page": page, "limit": limit,
@@ -283,7 +284,7 @@ async def get_purchase_order(
             "status": order["status"],
             "expected_date": str(order["expectedDate"]) if order["expectedDate"] else None,
             "notes": order["notes"], "total_cost": float(order["totalCost"]),
-            "created_at": str(order["created_at"]),
+            "created_at": utc_isoformat(order["created_at"]),
             "items": [{
                 "id": str(row["id"]), "product_id": str(row["productId"]),
                 "product_name": row["name"], "ordered_quantity": row["orderedQuantity"],
@@ -477,7 +478,7 @@ async def receive_purchase_order(
             "message": "Goods receipt posted",
             "receipt_id": str(receipt_row["id"]),
             "status": new_status,
-            "received_at": str(receipt_row["received_at"]),
+            "received_at": utc_isoformat(receipt_row["received_at"]),
         }
     except HTTPException:
         conn.rollback()

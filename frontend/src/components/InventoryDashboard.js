@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getApiErrorMessage } from '@/lib/apiError';
 import AppIcon from './AppIcon';
+import { notifyInventoryChanged } from '@/lib/workspaceEvents';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 const money = new Intl.NumberFormat('en-PK', {
@@ -105,6 +106,7 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
       const data = await response.json();
       if (!response.ok) throw new Error(getApiErrorMessage(data, 'Inventory batch could not be created'));
       setShowAddForm(false);
+      notifyInventoryChanged();
       await loadInventory(1);
     } catch (err) {
       setError(err.message);
@@ -133,6 +135,7 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
       const data = await response.json();
       if (!response.ok) throw new Error(getApiErrorMessage(data, 'Stock could not be adjusted'));
       setAdjustingItem(null);
+      notifyInventoryChanged();
       await loadInventory(page);
       if (showMovements) await loadMovements();
     } catch (err) {
@@ -169,6 +172,7 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
       const batchData = await batchResponse.json();
       if (!batchResponse.ok) throw new Error(getApiErrorMessage(batchData, 'Batch could not be updated'));
       setEditingItem(null);
+      notifyInventoryChanged();
       await loadInventory(page);
     } catch (err) {
       setError(err.message);
@@ -191,6 +195,7 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(getApiErrorMessage(data, `${kind} could not be archived`));
+      notifyInventoryChanged();
       await loadInventory(1);
     } catch (err) {
       setError(err.message);

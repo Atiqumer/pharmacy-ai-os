@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { getApiErrorMessage } from '@/lib/apiError';
 import DashboardSidebar from '@/components/DashboardSidebar';
+import { notifyInventoryChanged } from '@/lib/workspaceEvents';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 const money = new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 2 });
@@ -21,6 +22,7 @@ export default function SalesPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [reportLoading, setReportLoading] = useState('');
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
@@ -102,6 +104,7 @@ export default function SalesPage() {
       setSuccess(`${data.sale_number} completed for ${money.format(data.total)}`);
       setCart([{ product_id: '', quantity: 1, unit_price: '' }]);
       saleForm.reset();
+      notifyInventoryChanged();
       await loadWorkspace();
     } catch (err) {
       setError(err.message);
@@ -145,6 +148,7 @@ export default function SalesPage() {
       if (!response.ok) throw new Error(getApiErrorMessage(data, 'Return could not be completed'));
       setSuccess(`${data.return_number} completed; refund ${money.format(data.refund_amount)}`);
       setSelectedSale(null);
+      notifyInventoryChanged();
       await loadWorkspace();
     } catch (err) {
       setError(err.message);
@@ -155,6 +159,8 @@ export default function SalesPage() {
 
   const downloadReport = async (path, fallbackName) => {
     setError('');
+    setSuccess('');
+    setReportLoading(fallbackName);
     try {
       const response = await authFetch(`${API_URL}${path}`);
       if (!response.ok) {
@@ -168,8 +174,11 @@ export default function SalesPage() {
       anchor.download = fallbackName;
       anchor.click();
       URL.revokeObjectURL(url);
+      setSuccess(`${fallbackName} downloaded successfully.`);
     } catch (err) {
       setError(err.message);
+    } finally {
+      setReportLoading('');
     }
   };
 
@@ -181,7 +190,7 @@ export default function SalesPage() {
       <div className="mx-auto max-w-[1440px] space-y-7">
         <header className="flex flex-col justify-between gap-4 border-b border-slate-200 pb-6 sm:flex-row">
           <div><h1 className="text-2xl font-semibold tracking-tight text-slate-950">Sales workspace</h1><p className="mt-1.5 text-sm text-slate-500">Checkout with FEFO batch allocation and auditable returns.</p></div>
-          <div className="flex flex-wrap gap-2"><button onClick={() => downloadReport('/reports/inventory.csv', 'inventory.csv')} className="ui-secondary">Export inventory</button><button onClick={() => downloadReport('/reports/sales.csv', 'sales.csv')} className="ui-secondary">Export sales</button></div>
+          <div className="flex flex-wrap gap-2"><button disabled={Boolean(reportLoading)} onClick={() => downloadReport('/reports/inventory.csv', 'inventory.csv')} className="ui-secondary">{reportLoading === 'inventory.csv' ? 'Exporting…' : 'Export inventory'}</button><button disabled={Boolean(reportLoading)} onClick={() => downloadReport('/reports/sales.csv', 'sales.csv')} className="ui-secondary">{reportLoading === 'sales.csv' ? 'Exporting…' : 'Export sales'}</button></div>
         </header>
 
         {error && <div role="alert" className="p-3 border border-red-500/30 bg-red-500/10 text-red-300 rounded-lg">{error}</div>}

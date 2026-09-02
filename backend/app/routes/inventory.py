@@ -10,6 +10,7 @@ from typing import Literal, Optional
 from uuid import UUID
 from pydantic import BaseModel, Field, field_validator, model_validator
 from app.database import get_db_connection
+from app.utils.datetime import utc_isoformat
 from app.services.auth import get_current_user
 
 limiter = Limiter(key_func=get_remote_address)
@@ -223,7 +224,7 @@ async def adjust_batch_stock(
             "quantity_change": adjustment.quantity_change,
             "quantity_after": quantity_after,
             "reason": adjustment.reason,
-            "created_at": str(movement["created_at"]),
+            "created_at": utc_isoformat(movement["created_at"]),
         }
     except HTTPException:
         conn.rollback()
@@ -307,7 +308,7 @@ async def update_product(
             "category": row["category"], "min_stock_level": row["minStockLevel"],
             "sku": row["sku"], "barcode": row["barcode"], "manufacturer": row["manufacturer"],
             "strength": row["strength"], "dosage_form": row["dosage_form"],
-            "is_active": row["is_active"], "updated_at": str(row["updated_at"]),
+            "is_active": row["is_active"], "updated_at": utc_isoformat(row["updated_at"]),
         }
     except HTTPException:
         conn.rollback()
@@ -378,7 +379,7 @@ async def update_batch(
             "supplier_id": str(row["supplierId"]) if row["supplierId"] else None,
             "cost_price": float(row["costPrice"]), "retail_price": float(row["retailPrice"]),
             "expiry_date": str(row["expiryDate"]), "quantity": row["quantity"],
-            "is_active": row["is_active"], "updated_at": str(row["updated_at"]),
+            "is_active": row["is_active"], "updated_at": utc_isoformat(row["updated_at"]),
         }
     except HTTPException:
         conn.rollback()
@@ -445,7 +446,7 @@ async def list_stock_movements(
                     "reason": row["reason"],
                     "note": row["note"],
                     "created_by": row["full_name"],
-                    "created_at": str(row["created_at"]),
+                    "created_at": utc_isoformat(row["created_at"]),
                 }
                 for row in rows
             ],

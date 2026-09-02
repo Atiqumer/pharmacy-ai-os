@@ -1,6 +1,6 @@
 # Pharmacy AI OS — Project Status
 
-**Updated:** 26 August 2026
+**Updated:** 2 September 2026
 
 **Branch:** `recovery-hardening`
 
@@ -64,6 +64,7 @@ Secrets are supplied through local `.env` files or hosting-provider environment 
 - Notification thresholds come from pharmacy settings.
 - Frontend refreshes notification data every two minutes while the app is open.
 - Alerts are computed from current inventory, so they cannot become stale stored records.
+- Alerts refresh immediately after stock-changing actions, with the two-minute poll retained as a fallback.
 
 ### Suppliers and purchasing
 
@@ -89,6 +90,7 @@ Secrets are supplied through local `.env` files or hosting-provider environment 
 - 30-day sales, completed-sales, and estimated-gross-profit summary.
 - Inventory CSV and sales CSV downloads.
 - AI morning briefing using owner-scoped operational metrics.
+- AI expiry guidance uses each pharmacy's configured warning window and exact database-calculated days remaining.
 - Plain-language inventory questions converted to validated, read-only SQL.
 - Query table allowlist, mandatory owner filters, timeout, row limit, and transaction safeguards.
 - Browser voice input where the Web Speech API is supported.
@@ -100,6 +102,7 @@ Secrets are supplied through local `.env` files or hosting-provider environment 
 - Dashboard, inventory, purchasing, sales, reports, settings, onboarding, login/signup, admin, notifications, and error states share one visual system.
 - Accessible disabled button states, keyboard focus indicators, responsive forms, and horizontally scrollable data tables.
 - Empty, loading, success, and error states for core workflows.
+- Report exports show progress and a clear success or error result.
 
 ## Database and migrations
 
@@ -118,10 +121,12 @@ The schema covers users, pharmacy profiles, products, batches, suppliers, stock 
 - Admin routes enforce backend role checks.
 - SQL generated from natural language is SELECT-only, owner-scoped, table-limited, time-limited, and row-limited.
 - Accounts are archived/deactivated instead of deleting their business history.
+- Warm backend instances reuse a small, thread-safe PostgreSQL connection pool to reduce repeated Supabase connection overhead.
+- API datetimes are serialized as explicit UTC ISO 8601 values so browsers display the correct local time.
 
 ## Verification baseline
 
-- **60 backend unit/API tests** cover authentication, authorization, inventory, stock ledger, suppliers, purchasing, sales, returns, reports, notifications, settings, and AI query safety.
+- **63 backend unit/API tests** cover authentication, authorization, inventory, stock ledger, suppliers, purchasing, sales, returns, reports, notifications, settings, AI query safety, expiry-window accuracy, and timezone serialization.
 - **2 live PostgreSQL integration tests** verify migrations and database constraints.
 - Frontend ESLint and production build are required by CI.
 - There is currently no automated frontend component or browser end-to-end test suite.
@@ -147,7 +152,7 @@ Supabase platform recovery/backup options remain the hosting provider's responsi
 3. Verify production environment variables and allowed origins after every hosting change.
 4. Prepare a small clean demo CSV and a one-page operator guide.
 5. Record tester feedback and fix workflow blockers before adding more features.
-6. Reduce first-load latency by consolidating workspace requests and reusing database connections where the hosting environment permits it.
+6. Measure production latency after deployment of connection reuse; consolidate workspace endpoints only if the warm-path target is still missed.
 
 ### Valuable after tester feedback
 

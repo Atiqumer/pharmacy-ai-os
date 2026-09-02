@@ -1,0 +1,6 @@
+product_name,generic_name,category,batch_number,quantity,cost_price,retail_price,expiry_date,min_stock_level
+Paracetamol 500mg,Paracetamol,Analgesic,DEMO-PARA-01,6,18.00,25.00,2026-09-20,10
+Amoxicillin 500mg,Amoxicillin,Antibiotic,DEMO-AMOX-01,24,120.00,155.00,2027-06-30,8
+Cetirizine 10mg,Cetirizine,Antihistamine,DEMO-CET-01,15,32.00,45.00,2027-03-31,6
+Omeprazole 20mg,Omeprazole,Gastrointestinal,DEMO-OME-01,9,55.00,75.00,2026-10-15,10
+ORS Sachet,Oral Rehydration Salts,Hydration,DEMO-ORS-01,40,22.00,30.00,2027-12-31,12

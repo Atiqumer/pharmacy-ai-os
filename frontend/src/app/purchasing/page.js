@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { getApiErrorMessage } from '@/lib/apiError';
 import DashboardSidebar from '@/components/DashboardSidebar';
+import { notifyInventoryChanged } from '@/lib/workspaceEvents';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 const money = new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 });
@@ -193,6 +194,7 @@ export default function PurchasingPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(getApiErrorMessage(data, 'Goods receipt could not be posted'));
       setReceiptOrder(null);
+      notifyInventoryChanged();
       await loadWorkspace();
     } catch (err) { setError(err.message); } finally { setActionLoading(false); }
   };

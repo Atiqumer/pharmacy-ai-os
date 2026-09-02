@@ -9,6 +9,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from app.database import get_db_connection
+from app.utils.datetime import utc_isoformat
 from app.services.auth import get_current_user
 
 limiter = Limiter(key_func=get_remote_address)
@@ -166,7 +167,7 @@ async def create_sale(
             "id": str(sale_row["id"]), "sale_number": sale_row["saleNumber"],
             "status": sale_row["status"], "subtotal": float(subtotal),
             "discount": float(sale.discount), "total": float(total),
-            "created_at": str(sale_row["created_at"]),
+            "created_at": utc_isoformat(sale_row["created_at"]),
             "allocations": len(allocations),
         }
     except HTTPException:
@@ -217,7 +218,7 @@ async def list_sales(
                 "id": str(row["id"]), "sale_number": row["saleNumber"], "status": row["status"],
                 "subtotal": float(row["subtotal"]), "discount": float(row["discount"]),
                 "total": float(row["total"]), "notes": row["notes"],
-                "item_count": row["item_count"], "created_at": str(row["created_at"]),
+                "item_count": row["item_count"], "created_at": utc_isoformat(row["created_at"]),
             } for row in rows],
             "total": rows[0]["total_count"] if rows else 0, "page": page, "limit": limit,
         }
@@ -253,7 +254,7 @@ async def get_sale(
             "id": str(sale["id"]), "sale_number": sale["saleNumber"], "status": sale["status"],
             "subtotal": float(sale["subtotal"]), "discount": float(sale["discount"]),
             "total": float(sale["total"]), "notes": sale["notes"],
-            "created_at": str(sale["created_at"]),
+            "created_at": utc_isoformat(sale["created_at"]),
             "items": [{
                 "id": str(row["id"]), "product_id": str(row["productId"]),
                 "product_name": row["product_name"], "batch_id": str(row["batchId"]),
@@ -366,7 +367,7 @@ async def create_sales_return(
         return {
             "id": str(return_row["id"]), "return_number": return_row["returnNumber"],
             "sale_number": sale["saleNumber"], "sale_status": new_status,
-            "refund_amount": float(refund_total), "created_at": str(return_row["created_at"]),
+            "refund_amount": float(refund_total), "created_at": utc_isoformat(return_row["created_at"]),
         }
     except HTTPException:
         conn.rollback()

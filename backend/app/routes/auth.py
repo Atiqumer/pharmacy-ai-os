@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr
 from app.database import get_db_connection
+from app.utils.datetime import utc_isoformat
 from app.services.auth import create_access_token, get_current_user, require_role
 from app.services.email_service import send_password_reset_email
 from starlette.concurrency import run_in_threadpool
@@ -157,7 +158,7 @@ async def get_me(current_user: dict = Depends(get_current_user)):
             "full_name": user["full_name"],
             "role": user["role"],
             "is_active": user["is_active"],
-            "created_at": str(user["created_at"]),
+            "created_at": utc_isoformat(user["created_at"]),
         }
     finally:
         cursor.close()

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import AppIcon from './AppIcon';
+import { INVENTORY_CHANGED_EVENT } from '@/lib/workspaceEvents';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
@@ -32,7 +33,11 @@ export default function NotificationCenter({ authFetch, refreshKey = 0 }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadNotifications();
     const interval = window.setInterval(loadNotifications, 120000);
-    return () => window.clearInterval(interval);
+    window.addEventListener(INVENTORY_CHANGED_EVENT, loadNotifications);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener(INVENTORY_CHANGED_EVENT, loadNotifications);
+    };
   }, [loadNotifications, refreshKey]);
 
   useEffect(() => {

@@ -7,6 +7,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from app.database import get_db_connection
+from app.utils.datetime import utc_isoformat
 from app.services.auth import get_current_user
 
 limiter = Limiter(key_func=get_remote_address)
@@ -39,7 +40,7 @@ def _serialize_supplier(row):
         "email": row["email"],
         "address": row["address"],
         "is_active": row["is_active"],
-        "created_at": str(row["created_at"]),
+        "created_at": utc_isoformat(row["created_at"]),
     }
 
 
