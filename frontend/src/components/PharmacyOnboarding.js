@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import AppIcon from './AppIcon';
 import { getApiErrorMessage } from '@/lib/apiError';
+import { fetchWithRetry } from '@/lib/fetchWithRetry';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
@@ -16,7 +17,7 @@ export default function PharmacyOnboarding({ authFetch, onComplete }) {
     setStatus('loading');
     setError('');
     try {
-      const response = await authFetch(`${API_URL}/settings/pharmacy`);
+      const response = await fetchWithRetry(authFetch, `${API_URL}/settings/pharmacy`);
       const data = await response.json();
       if (!response.ok) throw new Error(getApiErrorMessage(data, 'Pharmacy setup could not be loaded'));
       setStatus(data.setup_complete ? 'complete' : 'required');

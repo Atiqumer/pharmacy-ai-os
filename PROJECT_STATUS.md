@@ -103,6 +103,7 @@ Secrets are supplied through local `.env` files or hosting-provider environment 
 - Accessible disabled button states, keyboard focus indicators, responsive forms, and horizontally scrollable data tables.
 - Empty, loading, success, and error states for core workflows.
 - Report exports show progress and a clear success or error result.
+- Core read requests recover from brief serverless/network failures with bounded retries; transaction writes are never retried automatically.
 
 ## Database and migrations
 

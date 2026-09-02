@@ -6,6 +6,7 @@ import DashboardSidebar from '@/components/DashboardSidebar';
 import AppIcon from '@/components/AppIcon';
 import { useAuth } from '@/contexts/AuthContext';
 import { getApiErrorMessage } from '@/lib/apiError';
+import { fetchWithRetry } from '@/lib/fetchWithRetry';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
@@ -26,7 +27,7 @@ export default function PharmacySettingsPage() {
     setLoading(true);
     setError('');
     try {
-      const response = await authFetch(`${API_URL}/settings/pharmacy`);
+      const response = await fetchWithRetry(authFetch, `${API_URL}/settings/pharmacy`);
       const data = await response.json();
       if (!response.ok) throw new Error(getApiErrorMessage(data, 'Pharmacy settings could not be loaded'));
       setProfile(data.profile);

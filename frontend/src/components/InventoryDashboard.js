@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { getApiErrorMessage } from '@/lib/apiError';
 import AppIcon from './AppIcon';
 import { notifyInventoryChanged } from '@/lib/workspaceEvents';
+import { fetchWithRetry } from '@/lib/fetchWithRetry';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 const money = new Intl.NumberFormat('en-PK', {
@@ -57,9 +58,9 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
 
     try {
       const [summaryResponse, itemsResponse, reorderResponse] = await Promise.all([
-        authFetch(`${API_URL}/inventory/summary`),
-        authFetch(`${API_URL}/inventory/items?${params}`),
-        authFetch(`${API_URL}/analytics/reorder-suggestions`),
+        fetchWithRetry(authFetch, `${API_URL}/inventory/summary`),
+        fetchWithRetry(authFetch, `${API_URL}/inventory/items?${params}`),
+        fetchWithRetry(authFetch, `${API_URL}/analytics/reorder-suggestions`),
       ]);
       if (!summaryResponse.ok || !itemsResponse.ok || !reorderResponse.ok) throw new Error('Inventory data could not be loaded');
       const [summaryData, itemsData, reorderData] = await Promise.all([
@@ -207,7 +208,7 @@ export default function InventoryDashboard({ authFetch, refreshKey = 0 }) {
   const loadMovements = async () => {
     setError('');
     try {
-      const response = await authFetch(`${API_URL}/inventory/movements?limit=25`);
+      const response = await fetchWithRetry(authFetch, `${API_URL}/inventory/movements?limit=25`);
       const data = await response.json();
       if (!response.ok) throw new Error(getApiErrorMessage(data, 'Stock history could not be loaded'));
       setMovements(data.movements);

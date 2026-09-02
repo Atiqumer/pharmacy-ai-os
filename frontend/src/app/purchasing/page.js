@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getApiErrorMessage } from '@/lib/apiError';
 import DashboardSidebar from '@/components/DashboardSidebar';
 import { notifyInventoryChanged } from '@/lib/workspaceEvents';
+import { fetchWithRetry } from '@/lib/fetchWithRetry';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 const money = new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 0 });
@@ -41,9 +42,9 @@ export default function PurchasingPage() {
     setError('');
     try {
       const [supplierRes, orderRes, inventoryRes] = await Promise.all([
-        authFetch(`${API_URL}/suppliers`),
-        authFetch(`${API_URL}/purchasing/orders?limit=100`),
-        authFetch(`${API_URL}/inventory/items?limit=100`),
+        fetchWithRetry(authFetch, `${API_URL}/suppliers`),
+        fetchWithRetry(authFetch, `${API_URL}/purchasing/orders?limit=100`),
+        fetchWithRetry(authFetch, `${API_URL}/inventory/items?limit=100`),
       ]);
       if (!supplierRes.ok || !orderRes.ok || !inventoryRes.ok) throw new Error('Purchasing workspace could not be loaded');
       const [supplierData, orderData, inventoryData] = await Promise.all([
@@ -113,7 +114,7 @@ export default function PurchasingPage() {
     setActionLoading(true);
     setError('');
     try {
-      const response = await authFetch(`${API_URL}/purchasing/orders/${orderId}`);
+      const response = await fetchWithRetry(authFetch, `${API_URL}/purchasing/orders/${orderId}`);
       const data = await response.json();
       if (!response.ok) throw new Error(getApiErrorMessage(data, 'Order details could not be loaded'));
       setEditingOrder(data);
@@ -168,7 +169,7 @@ export default function PurchasingPage() {
   const openReceipt = async (orderId) => {
     setActionLoading(true);
     try {
-      const response = await authFetch(`${API_URL}/purchasing/orders/${orderId}`);
+      const response = await fetchWithRetry(authFetch, `${API_URL}/purchasing/orders/${orderId}`);
       const data = await response.json();
       if (!response.ok) throw new Error(getApiErrorMessage(data, 'Order details could not be loaded'));
       setReceiptOrder(data);

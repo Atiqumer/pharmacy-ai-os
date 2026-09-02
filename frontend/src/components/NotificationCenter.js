@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import AppIcon from './AppIcon';
 import { INVENTORY_CHANGED_EVENT } from '@/lib/workspaceEvents';
+import { fetchWithRetry } from '@/lib/fetchWithRetry';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
@@ -17,7 +18,7 @@ export default function NotificationCenter({ authFetch, refreshKey = 0 }) {
   const loadNotifications = useCallback(async () => {
     setError('');
     try {
-      const response = await authFetch(`${API_URL}/notifications`);
+      const response = await fetchWithRetry(authFetch, `${API_URL}/notifications`);
       const data = await response.json();
       if (!response.ok) throw new Error('Notifications could not be loaded');
       setNotifications(data.notifications || []);

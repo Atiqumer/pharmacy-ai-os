@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getApiErrorMessage } from '@/lib/apiError';
 import DashboardSidebar from '@/components/DashboardSidebar';
 import { notifyInventoryChanged } from '@/lib/workspaceEvents';
+import { fetchWithRetry } from '@/lib/fetchWithRetry';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 const money = new Intl.NumberFormat('en-PK', { style: 'currency', currency: 'PKR', maximumFractionDigits: 2 });
@@ -43,9 +44,9 @@ export default function SalesPage() {
     setError('');
     try {
       const [inventoryRes, salesRes, summaryRes] = await Promise.all([
-        authFetch(`${API_URL}/inventory/items?limit=100&expiry_status=all`),
-        authFetch(`${API_URL}/sales?limit=50`),
-        authFetch(`${API_URL}/reports/summary`),
+        fetchWithRetry(authFetch, `${API_URL}/inventory/items?limit=100&expiry_status=all`),
+        fetchWithRetry(authFetch, `${API_URL}/sales?limit=50`),
+        fetchWithRetry(authFetch, `${API_URL}/reports/summary`),
       ]);
       const [inventoryData, salesData, summaryData] = await Promise.all([
         inventoryRes.json(), salesRes.json(), summaryRes.json(),
@@ -117,7 +118,7 @@ export default function SalesPage() {
     setActionLoading(true);
     setError('');
     try {
-      const response = await authFetch(`${API_URL}/sales/${saleId}`);
+      const response = await fetchWithRetry(authFetch, `${API_URL}/sales/${saleId}`);
       const data = await response.json();
       if (!response.ok) throw new Error(getApiErrorMessage(data, 'Sale details could not be loaded'));
       setSelectedSale(data);

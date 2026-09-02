@@ -15,6 +15,8 @@
   - Acceptance: create/import/adjust/receive/sale/return actions update the notification badge without waiting two minutes.
 - [x] Give report downloads visible progress, success, and error feedback.
   - Acceptance: duplicate clicks are prevented while downloading and the user receives a clear result.
+- [x] Recover automatically from transient serverless GET failures.
+  - Acceptance: core data reads retry with a short bounded backoff; sales, receipts, and other writes are never automatically retried.
 - [x] Run backend tests, frontend lint, and frontend production build.
   - Verified locally: 63 backend tests passed, 2 live PostgreSQL tests skipped, frontend lint passed, and the Next.js production build passed.
 - [ ] Deploy and repeat the complete production workflow with clean demo data.

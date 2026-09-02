@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import DashboardSidebar from '@/components/DashboardSidebar';
+import { fetchWithRetry } from '@/lib/fetchWithRetry';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
@@ -23,7 +24,7 @@ export default function AdminPage() {
 
   const fetchUsers = async (p = 1) => {
     try {
-      const res = await authFetch(`${API_URL}/admin/users?page=${p}&limit=10`);
+      const res = await fetchWithRetry(authFetch, `${API_URL}/admin/users?page=${p}&limit=10`);
       if (res.ok) {
         const data = await res.json();
         setUsers(data.users);
@@ -41,7 +42,7 @@ export default function AdminPage() {
 
     async function loadUsers() {
       try {
-        const res = await authFetch(`${API_URL}/admin/users?page=1&limit=10`);
+        const res = await fetchWithRetry(authFetch, `${API_URL}/admin/users?page=1&limit=10`);
         if (!res.ok || cancelled) return;
         const data = await res.json();
         if (!cancelled) {
