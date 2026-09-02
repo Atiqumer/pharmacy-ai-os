@@ -19,13 +19,16 @@
   - Acceptance: core data reads retry with a short bounded backoff; sales, receipts, and other writes are never automatically retried.
 - [x] Run backend tests, frontend lint, and frontend production build.
   - Verified locally: 63 backend tests passed, 2 live PostgreSQL tests skipped, frontend lint passed, and the Next.js production build passed.
-- [ ] Deploy and repeat the complete production workflow with clean demo data.
+- [x] Deploy and repeat the complete production workflow with dedicated QA data.
+  - Verified 2 September 2026: authenticated dashboard, settings, notifications, purchasing data, sale, exact-batch return, report feedback, AI briefing, and stock movement audit.
+  - Production evidence: sale `SALE-20260902-8AFEE0` changed Ibuprofen 2 → 1; return `RET-20260902-B9FFA0` restored 1 → 2.
 
 ## P1 — demo quality
 
 - [x] Prepare a small, realistic demo inventory CSV.
 - [x] Write a one-page demo/operator guide and a 3–5 minute LinkedIn demo script.
-- [ ] Verify desktop, tablet, and mobile layouts on Chrome/Edge.
+- [x] Verify desktop, tablet, and mobile responsive layouts in the production Chromium browser.
+  - Desktop dashboard and workspaces passed; 390×844 mobile and 820×1180 tablet had working drawer navigation and no page-level horizontal overflow.
 - [ ] Add browser automation for login → inventory → purchase → sale → return → alert.
 - [ ] Add basic uptime/error monitoring for the public frontend and API.
 

@@ -164,4 +164,6 @@ Supabase platform recovery/backup options remain the hosting provider's responsi
 
 ## Current readiness assessment
 
-The core functional scope for a single-owner release is implemented. The remaining risk is now operational validation and usability on real pharmacy data—not a missing core backend module. After the required acceptance test passes with one or two pharmacies, the next major phase should be frontend refinement based on observed tester behavior rather than speculative feature expansion.
+The core functional scope for a single-owner release is implemented. A production acceptance pass on 2 September 2026 verified authentication, settings, notifications, purchasing data, sale and exact-batch return, report feedback, AI briefing, local-time display, movement audit, and responsive desktop/tablet/mobile behavior. A transient first-load Sales request was reproduced and fixed with bounded GET-only retries; the deployed fix passed retesting.
+
+The remaining risk is usability on a real pharmacy's daily data rather than a missing core backend module. The next major phase should be observed use by the pharmacy tester, Aronium import validation, and only then barcode/printing work based on evidence.
